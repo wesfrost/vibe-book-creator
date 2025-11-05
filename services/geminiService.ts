@@ -2,10 +2,11 @@
 import { GoogleGenAI, Schema } from "@google/genai";
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
-// In this managed proxy environment, the API key is handled entirely on the backend.
-// We initialize the client with an empty object to satisfy the constructor,
-// allowing it to make unauthenticated requests that the proxy will intercept.
-const ai = new GoogleGenAI({});
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+if (!apiKey) {
+    throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables. Please add it to your .env.local file and restart your development server.");
+}
+const ai = new GoogleGenAI(apiKey);
 
 interface GeminiCallParams {
     systemInstruction: string;
