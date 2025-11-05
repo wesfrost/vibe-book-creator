@@ -16,7 +16,7 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
     {
         name: "Phase 2: Structure & Chapter Development",
         steps: [
-            { name: "Global Outline Approved", completed: false },
+            { name: "Main Storyline Solidified", completed: false },
             { name: "Key Characters Defined", completed: false },
             { name: "Number of Chapters Defined", completed: false },
             { name: "Pacing Strategy Agreed", completed: false },
@@ -161,7 +161,7 @@ export const MEMOIR_PROGRESS: ProgressPhase[] = [
         steps: [
             { name: "Style & Vibe Analysis", completed: false },
             { name: "Core Symbolism Prompt", completed: false },
-            { name: "AI-Powered Image Generation", completed: false },
+            { name: "AI-Powered Image Generation", "completed": false },
             { name: "Typography & Layout", completed: false },
             { name: "KDP Cover Assembly", completed: false },
         ]

@@ -1,19 +1,22 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { ChatMessage, ProgressPhase, BookState } from './types';
 import { FICTION_PROGRESS, HOW_TO_PROGRESS, MEMOIR_PROGRESS, FLASH_FICTION_PROGRESS, BOOK_FORMAT_OPTIONS } from './config';
+import { AI_MODELS, DEFAULT_AI_MODEL_ID } from './config/aiModels';
 import { processStep, analyzeChapter } from './services/orchestrationService';
 import { generateKDPPackage, exportAsMarkdown } from './services/exportService';
 import ProgressTracker from './components/ProgressTracker';
 import ChatWindow from './components/ChatWindow';
 import MarkdownEditor from './components/MarkdownEditor';
 import StateInspector from './components/StateInspector';
+import BookStateViewer from './components/BookStateViewer';
 import MarketingInfo from './components/MarketingInfo';
 import CoverDesigner from './components/CoverDesigner';
 import ComboBox from './components/ComboBox';
+import { CHAPTER_COUNT_OPTIONS } from './config/chapterCounts';
 
 type ChapterDraftingStage = 'idea' | 'draft' | 'review' | 'inactive';
-type MainView = 'progress' | 'editor' | 'dev' | 'marketing' | 'cover';
+type MainView = 'progress' | 'editor' | 'dashboard' | 'dev' | 'marketing' | 'cover';
 type ExportType = 'kdp' | 'md' | 'docx';
 
 const getUpdatedProgress = (currentProgress: ProgressPhase[], stepName: string): ProgressPhase[] => {
@@ -42,25 +45,26 @@ const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView
 };
 
 export default function App() {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [progress, setProgress] = useState<ProgressPhase[]>(FICTION_PROGRESS);
-    const [flatSteps, setFlatSteps] = useState<{ phase: string; step: string }[]>([]);
-    const [currentStepIndex, setCurrentStepIndex] = useState(0);
-    const [bookState, setBookState] = useState<BookState>({ chapters: [] });
-    const [isLoading, setIsLoading] = useState(false);
-    const [isAutoMode, setIsAutoMode] = useState(false);
-    const [isDevMode, setIsDevMode] = useState(false);
-    const [mainView, setMainView] = useState<MainView>('editor');
-    const [chapterDrafting, setChapterDrafting] = useState<{
+    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+    const [progress, setProgress] = React.useState<ProgressPhase[]>(FICTION_PROGRESS);
+    const [flatSteps, setFlatSteps] = React.useState<{ phase: string; step: string }[]>([]);
+    const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
+    const [bookState, setBookState] = React.useState<BookState>({ chapters: [] });
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [isAutoMode, setIsAutoMode] = React.useState(false);
+    const [isDevMode, setIsDevMode] = React.useState(false);
+    const [mainView, setMainView] = React.useState<MainView>('dashboard');
+    const [selectedModelId, setSelectedModelId] = React.useState<string>(DEFAULT_AI_MODEL_ID);
+    const [chapterDrafting, setChapterDrafting] = React.useState<{
         isActive: boolean;
         currentChapter: number;
         stage: ChapterDraftingStage;
     }>({ isActive: false, currentChapter: 1, stage: 'inactive' });
-
-    const [isBookComplete, setIsBookComplete] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(true);
-    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
-    const headerMenuRef = useRef<HTMLDivElement>(null);
+    const [chapterCountOptions, setChapterCountOptions] = React.useState<{ low: number, medium: number, high: number } | null>(null);
+    const [isBookComplete, setIsBookComplete] = React.useState(false);
+    const [isChatOpen, setIsChatOpen] = React.useState(true);
+    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = React.useState(false);
+    const headerMenuRef = React.useRef<HTMLDivElement>(null);
 
     const exportBook = async (type: ExportType) => {
         if (!bookState.title) {
@@ -77,7 +81,7 @@ export default function App() {
         }
     };
 
-    useEffect(() => {
+    React.useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
                 setIsHeaderMenuOpen(false);
@@ -89,13 +93,13 @@ export default function App() {
         };
     }, [headerMenuRef]);
 
-    useEffect(() => {
+    React.useEffect(() => {
         const firstMessage: ChatMessage = {
             id: 'jim-intro', sender: 'jim',
-            text: `Hello there, amazing author! 🌟 I'm **Book Work Jim**. Think of me as your personal project manager and mentor. My team of AI experts and I are here to demystify the process of writing a best-seller, from the first spark to the final marketing blurb.`,
+            text: `Hello there, amazing author! 🌟 I'm **Book Work Jim**. Think of me as your personal project manager and mentor. My team of AI experts and I are here to demistify the process of writing a best-seller, from the first spark to the final marketing blurb.`,
             isProgressUpdate: true,
         };
-        
+
         const secondMessage: ChatMessage = {
             id: 'jim-first-step', sender: 'jim',
             text: `My specialists will not only help you write, but they'll explain the 'why' behind every step, sharing industry secrets to help you succeed. Ready to lay the foundation? Let's start with **Phase 1, Step 1: Choosing your Book Format.** What kind of masterpiece are we creating today? ✍️`,
@@ -108,6 +112,39 @@ export default function App() {
         );
         setFlatSteps(initialFlatSteps);
     }, []);
+    
+    React.useEffect(() => {
+        if (bookState['Book Format Selected'] && bookState['Genre Defined']) {
+            const format = bookState['Book Format Selected'] as keyof typeof CHAPTER_COUNT_OPTIONS;
+            const genre = bookState['Genre Defined'] as keyof typeof CHAPTER_COUNT_OPTIONS[typeof format];
+            
+            const options = CHAPTER_COUNT_OPTIONS[format]?.[genre] || CHAPTER_COUNT_OPTIONS[format]?.['default'];
+
+            if (options) {
+                setChapterCountOptions(options);
+                
+                const currentStepName = flatSteps[currentStepIndex]?.step;
+                if (currentStepName === "Number of Chapters Defined" || currentStepName === "Number of Modules Defined") {
+                    setMessages(prev => {
+                        const lastMessage = prev[prev.length - 1];
+                        if (lastMessage.sender === 'jim' && !lastMessage.options?.length) {
+                             const updatedMessage = {
+                                ...lastMessage,
+                                options: [
+                                    { title: `${options.low} chapters`, description: "A quicker read, great for fast-paced genres." },
+                                    { title: `${options.medium} chapters`, description: "A solid, standard length that hits the sweet spot for most readers." },
+                                    { title: `${options.high} chapters`, description: "An epic, sprawling story with plenty of room for depth." },
+                                ]
+                             };
+                             return [...prev.slice(0, -1), updatedMessage];
+                        }
+                        return prev;
+                    });
+                }
+            }
+        }
+    }, [bookState['Book Format Selected'], bookState['Genre Defined'], currentStepIndex, flatSteps]);
+
 
     const handleToggleAutoMode = () => {
         const newAutoModeState = !isAutoMode;
@@ -121,320 +158,80 @@ export default function App() {
         setMessages(prev => [...prev, modeMessage]);
     };
 
-    const handleSendMessage = async (text: string, isAuto: boolean = false) => {
+    const handleSendMessage = async (text: string, isAuto: boolean = false, isSelection: boolean = false) => {
         if (isLoading || isBookComplete) return;
-
-        const userMessage: ChatMessage = {
-            id: Date.now().toString(),
-            sender: 'user',
-            text,
-            isAuto
-        };
+    
+        const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text, isAuto };
         setMessages(prev => [...prev, userMessage]);
-        
         setIsLoading(true);
-        
+    
         const currentHistory = [...messages, userMessage];
-        
-        if (currentStepIndex === 0 && flatSteps[currentStepIndex].step === "Book Format Selected") {
-            let track = FICTION_PROGRESS;
-            let newBookState = { ...bookState, "Book Format Selected": text };
-            
-            if (text.includes("How-To") || text.includes("Self-Help")) track = HOW_TO_PROGRESS;
-            else if (text.includes("Memoir")) track = MEMOIR_PROGRESS;
-            else if (text.includes("Flash Fiction")) {
-                track = FLASH_FICTION_PROGRESS;
-                newBookState = { ...newBookState, chapterCount: 1 };
-            }
-
-            const newProgress = JSON.parse(JSON.stringify(track));
-            newProgress[0].steps[0].completed = true;
-
-            const newFlatSteps = newProgress.flatMap(phase =>
-                phase.steps.map(step => ({ phase: phase.name, step: step.name }))
-            );
-
-            const nextStepIndex = 1;
-            const nextTask = newFlatSteps[nextStepIndex];
-
-            const response = await processStep(currentHistory, nextTask.step, newBookState, isDevMode);
-            const jimResponse: ChatMessage = { 
-                id: (Date.now() + 1).toString(), 
-                sender: 'jim', 
-                text: response.message, 
-                options: response.options || [],
-                items: response.items || []
-            };
-
-            setBookState(newBookState);
-            setProgress(newProgress);
-            setFlatSteps(newFlatSteps);
-            setCurrentStepIndex(nextStepIndex);
-            setMessages(prev => [...prev, jimResponse]);
-            setIsLoading(false);
-            return;
-        }
-
-        if (flatSteps[currentStepIndex].step === "Working Title Defined") {
-            const updatedBookState = { ...bookState, workingTitle: text, [flatSteps[currentStepIndex].step]: text };
-            setBookState(updatedBookState);
-
-            const updatedProgress = getUpdatedProgress(progress, "Working Title Defined");
-            setProgress(updatedProgress);
-
-            const nextStepIndex = currentStepIndex + 1;
-            setCurrentStepIndex(nextStepIndex);
-            
-            const nextTask = flatSteps[nextStepIndex];
-            const response = await processStep(currentHistory, nextTask.step, updatedBookState, isDevMode);
-            const jimResponse: ChatMessage = { 
-                id: (Date.now() + 1).toString(), 
-                sender: 'jim', 
-                text: response.message, 
-                options: response.options || [],
-                items: response.items || []
-            };
-            setMessages(prev => [...prev, jimResponse]);
-            setIsLoading(false);
-            return;
-        }
-        
-        if (flatSteps[currentStepIndex].step === "Final Title Locked In") {
-            const updatedBookState = { ...bookState, title: text, [flatSteps[currentStepIndex].step]: text };
-            setBookState(updatedBookState);
-        }
-
-        if (flatSteps[currentStepIndex].phase === "Cover Design") {
-            if (flatSteps[currentStepIndex].step === "AI-Powered Image Generation") {
-                setMainView('cover');
-            }
-        }
-
-        let newMessages: ChatMessage[] = [];
-        const isHowTo = bookState['Book Format Selected']?.includes('How-To');
-        const stepNamePrefix = isHowTo ? 'Module' : 'Chapter';
-
-        if (chapterDrafting.isActive) {
-            let nextStage = chapterDrafting.stage;
-            let currentChapterNum = chapterDrafting.currentChapter;
-            let response: any;
-            let bookStateForNextCall = { ...bookState };
-            
-            if (chapterDrafting.stage === 'idea') {
-                response = await processStep(currentHistory, `Generate idea for ${stepNamePrefix} ${currentChapterNum}`, bookStateForNextCall, isDevMode);
-                nextStage = 'draft';
-            } else if (chapterDrafting.stage === 'draft') {
-                 const lastJimMessage = [...messages, userMessage].reverse().find(m => m.sender === 'jim' && m.chapterIdea);
-                 if (lastJimMessage?.chapterIdea) {
-                     const placeholderChapter = {
-                         title: lastJimMessage.chapterIdea.title,
-                         idea: lastJimMessage.chapterIdea.idea,
-                         content: `${stepNamePrefix} content is being drafted...`
-                     };
-                      bookStateForNextCall = {
-                         ...bookState,
-                         chapters: [...(bookState.chapters || []), placeholderChapter]
-                     };
-                     setBookState(bookStateForNextCall);
-                 }
-                response = await processStep(currentHistory, `Draft ${stepNamePrefix} ${currentChapterNum}`, bookStateForNextCall, isDevMode);
-
-                if (response.chapterContent) {
-                    const analysisText = await analyzeChapter(response.chapterContent, bookStateForNextCall, isDevMode);
-                    const analysisMessage: ChatMessage = {
-                        id: (Date.now() + 2).toString(), sender: 'jim',
-                        text: analysisText, isAnalysis: true,
-                    };
-                    newMessages.push(analysisMessage);
-                }
-                nextStage = 'review';
-            } else if (chapterDrafting.stage === 'review') {
-                const updatedProgress = getUpdatedProgress(progress, `${stepNamePrefix} ${currentChapterNum} Drafted`);
-                setProgress(updatedProgress);
-                currentChapterNum++;
-
-                if (currentChapterNum > (bookState.chapterCount || 0)) {
-                    setChapterDrafting({ isActive: false, currentChapter: 1, stage: 'inactive' });
-                    
-                    const progressAfterReview = getUpdatedProgress(updatedProgress, 'Final Manuscript Review');
-                    const fullBookCompiledIndex = flatSteps.findIndex(s => s.step === 'Full Book Compiled');
-                    
-                    if (fullBookCompiledIndex !== -1) {
-                        const nextTask = flatSteps[fullBookCompiledIndex];
-                        response = await processStep(currentHistory, nextTask.step, bookStateForNextCall, isDevMode);
-                        
-                        const jimResponse: ChatMessage = { 
-                            id: (Date.now() + 1).toString(), 
-                            sender: 'jim', 
-                            text: response.message, 
-                            options: response.options || [] 
-                        };
-                        
-                        setProgress(progressAfterReview);
-                        setCurrentStepIndex(fullBookCompiledIndex);
-                        setMessages(prev => [...prev, jimResponse]);
-                    } else {
-                        const errorMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: "Something went wrong transitioning to the final phase. Please try again." };
-                        setMessages(prev => [...prev, errorMessage]);
-                    }
-
-                    setIsLoading(false);
-                    return;
-
-                } else {
-                    setChapterDrafting({ ...chapterDrafting, currentChapter: currentChapterNum, stage: 'idea' });
-                    response = await processStep(currentHistory, `Generate idea for ${stepNamePrefix} ${currentChapterNum}`, bookState, isDevMode);
-                    nextStage = 'draft';
-                }
-            } else {
-                 response = {message: "An unexpected error occurred during chapter drafting."};
-            }
-
+        const currentStepName = flatSteps[currentStepIndex].step;
+    
+        // If it's a discussion, stay on the current step and get new options
+        if (!isSelection) {
+            const response = await processStep(currentHistory, currentStepName, bookState, selectedModelId, isDevMode);
             const jimResponse: ChatMessage = {
                 id: (Date.now() + 1).toString(), sender: 'jim',
-                text: response.postChapterMessage || response.message,
+                text: response.message, options: response.options || [], items: response.items || []
             };
-
-            if (response.chapterIdea) {
-                jimResponse.chapterIdea = { title: response.chapterTitle, idea: response.chapterIdea };
-                jimResponse.options = [{ title: '✅ Yes, write it!', rationale: "Let's get this chapter drafted." }, { title: '🔄 Try a new idea', rationale: "Let's brainstorm another direction." }];
-            } else if (response.chapterContent) {
-                 setBookState(prev => {
-                    const updatedChapters = [...(prev.chapters || [])];
-                    if (updatedChapters.length > 0) {
-                        const lastChapter = updatedChapters[updatedChapters.length - 1];
-                        lastChapter.content = response.chapterContent;
-                        lastChapter.title = response.chapterTitle || lastChapter.title;
-                    }
-                    return { ...prev, chapters: updatedChapters };
-                });
-                if (chapterDrafting.currentChapter === 1) setMainView('editor');
-                const nextChapter = chapterDrafting.currentChapter + 1;
-                const nextOption = nextChapter > (bookState.chapterCount || 0) ? `🎉 Looks great! On to the final review.` : `➡️ Next ${stepNamePrefix}`;
-                jimResponse.options = [{ title: nextOption, rationale: "Let's keep the momentum going." }];
-            }
-            
-            setChapterDrafting({ isActive: true, currentChapter: currentChapterNum, stage: nextStage });
-            setMessages(prev => [...prev, ...newMessages, jimResponse]);
-            setIsLoading(false);
-            return;
-        }
-
-        const currentTask = flatSteps[currentStepIndex];
-        let finalProgress = getUpdatedProgress(progress, currentTask.step);
-        let newBookState = { ...bookState, [currentTask.step]: text };
-        let finalFlatSteps = flatSteps;
-        let nextStepIndex = currentStepIndex + 1;
-
-        if (currentTask.step.includes("Number of Chapters Defined") || currentTask.step.includes("Number of Modules Defined")) {
-            const count = parseInt(text.match(/\d+/)?.[0] || '3');
-            newBookState = { ...newBookState, chapterCount: count };
-            const tempProgress = JSON.parse(JSON.stringify(finalProgress));
-            const phase3Index = tempProgress.findIndex((p: ProgressPhase) => p.name.includes("Drafting & Review"));
-
-            if (phase3Index !== -1) {
-                const chapterSteps = Array.from({ length: count }, (_, i) => ({
-                    name: `${stepNamePrefix} ${i + 1} Drafted`, completed: false
-                }));
-                const originalPhase3 = progress[phase3Index];
-                tempProgress[phase3Index].steps = [...chapterSteps, ...originalPhase3.steps.slice(0)];
-                finalProgress = tempProgress;
-            }
-
-            finalFlatSteps = finalProgress.flatMap((phase: ProgressPhase) =>
-                phase.steps.map(step => ({ phase: phase.name, step: step.name }))
-            );
-
-            setBookState(newBookState);
-            setProgress(finalProgress);
-            setFlatSteps(finalFlatSteps);
-            setCurrentStepIndex(nextStepIndex);
-            
-            const nextTask = finalFlatSteps[nextStepIndex];
-            const response = await processStep(currentHistory, nextTask.step, newBookState, isDevMode);
-            const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [] };
-
             setMessages(prev => [...prev, jimResponse]);
             setIsLoading(false);
             return;
         }
+    
+        // --- If it IS a selection, advance the process ---
+        let newBookState = { ...bookState, [currentStepName]: text };
+        const updatedProgress = getUpdatedProgress(progress, currentStepName);
+        let nextStepIndex = currentStepIndex + 1;
         
-        if (currentTask.step === "Pacing Strategy Agreed" || currentTask.step === "Engagement Strategy Agreed") {
-            setChapterDrafting({ isActive: true, currentChapter: 1, stage: 'idea' });
-            const chapter1Index = finalFlatSteps.findIndex(s => s.step === `${stepNamePrefix} 1 Drafted`);
-            if (chapter1Index !== -1) {
-                setProgress(finalProgress); setFlatSteps(finalFlatSteps); setBookState(newBookState); setCurrentStepIndex(chapter1Index);
-                const response = await processStep(currentHistory, `Generate idea for ${stepNamePrefix} 1`, newBookState, isDevMode);
-                const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message };
-
-                if (response.chapterIdea) {
-                    jimResponse.chapterIdea = { title: response.chapterTitle, idea: response.chapterIdea };
-                    jimResponse.options = [{ title: '✅ Yes, write it!', rationale: "Let's get this drafted." }, { title: '🔄 Try a new idea', rationale: "Let's brainstorm another direction." }];
-                }
-                setChapterDrafting(prev => ({ ...prev, stage: 'draft' }));
-                setMessages(prev => [...prev, jimResponse]);
-                setIsLoading(false);
-                return;
+        // Handle dynamic chapter step creation
+        if (currentStepName.includes("Number of Chapters Defined") || currentStepName.includes("Number of Modules Defined")) {
+            const count = parseInt(text.match(/\d+/)?.[0] || '10');
+            newBookState = { ...newBookState, chapterCount: count };
+            const tempProgress = JSON.parse(JSON.stringify(updatedProgress));
+            const phase3Index = tempProgress.findIndex((p: ProgressPhase) => p.name.includes("Drafting & Review"));
+            if (phase3Index !== -1) {
+                const stepNamePrefix = newBookState['Book Format Selected']?.includes('How-To') ? 'Module' : 'Chapter';
+                const chapterSteps = Array.from({ length: count }, (_, i) => ({ name: `${stepNamePrefix} ${i + 1} Drafted`, completed: false }));
+                tempProgress[phase3Index].steps = [...chapterSteps, ...progress[phase3Index].steps];
+                setProgress(tempProgress);
+                setFlatSteps(tempProgress.flatMap((phase: ProgressPhase) => phase.steps.map(step => ({ phase: phase.name, step: step.name }))));
             }
         }
-
-        if (nextStepIndex >= finalFlatSteps.length) {
-            const finalMessage: ChatMessage = { id: 'jim-final', sender: 'jim', text: "We've done it! 🎉 What an incredible journey. Your book is ready for the world. It has been an absolute honor working with you!" };
-            setMessages(prev => [...prev, finalMessage]);
+    
+        // Check for book completion
+        if (nextStepIndex >= flatSteps.length) {
             setIsBookComplete(true);
+            setMessages(prev => [...prev, { id: 'jim-final', sender: 'jim', text: "We've done it! 🎉 Your book is ready for the world." }]);
             setIsLoading(false);
             return;
         }
-
-        const nextTask = finalFlatSteps[nextStepIndex];
-        const response = await processStep(currentHistory, nextTask.step, newBookState, isDevMode);
+    
+        const nextTask = flatSteps[nextStepIndex];
+        const response = await processStep(currentHistory, nextTask.step, newBookState, selectedModelId, isDevMode);
         const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [], items: response.items || [] };
-
+    
+        // Update book state with any special data from the response
         if (response.items) {
-            jimResponse.text += "\n\n" + response.items.map((item: string) => `- ${item}`).join("\n");
-            jimResponse.options = [{title: "Perfect, let's proceed!", rationale: "These look great. Let's lock them in."}];
-            
-            if (nextTask.step === "KDP Keywords Researched") {
-                newBookState = { ...newBookState, kdpKeywords: response.items };
-                setMainView('marketing');
-            } else if (nextTask.step === "Book Categories Selected") {
-                newBookState = { ...newBookState, bookCategories: response.items };
-            }
+             if (nextTask.step === "KDP Keywords Researched") newBookState = { ...newBookState, kdpKeywords: response.items };
+             else if (nextTask.step === "Book Categories Selected") newBookState = { ...newBookState, bookCategories: response.items };
         }
-        
-        if (nextTask.step.includes("Outline Approved") && response.outlineContent) {
-            newBookState = { ...newBookState, globalOutline: response.outlineContent };
-        }
-
-        if (nextTask.step === "Compelling Blurb Drafted") {
-             newBookState = { ...newBookState, blurb: response.message };
-        }
-
+        if (nextTask.step.includes("Outline Approved") && response.outlineContent) newBookState = { ...newBookState, globalOutline: response.outlineContent };
+        if (nextTask.step === "Compelling Blurb Drafted") newBookState = { ...newBookState, blurb: response.message };
+    
         setBookState(newBookState);
-        setProgress(finalProgress);
-        setFlatSteps(finalFlatSteps);
-        setMessages(prev => [...prev, jimResponse]);
+        setProgress(updatedProgress);
         setCurrentStepIndex(nextStepIndex);
+        setMessages(prev => [...prev, jimResponse]);
         setIsLoading(false);
     };
 
-    useEffect(() => {
-        if (!isAutoMode || isLoading || isBookComplete) return;
-        const runSimulationStep = () => {
-             const lastActionableMessage = [...messages].reverse().find(m => m.sender === 'jim' && !m.isAnalysis && !m.isProgressUpdate);
-            if (!lastActionableMessage) return;
-
-            let actionText = lastActionableMessage.chapterIdea ? '✅ Yes, write it!' : lastActionableMessage.options?.[0]?.title || "Sounds good, let's proceed.";
-            if (actionText) { handleSendMessage(actionText, true); }
-        };
-        const timer = setTimeout(runSimulationStep, 500);
-        return () => clearTimeout(timer);
-    }, [messages, isAutoMode, isLoading, currentStepIndex, chapterDrafting.isActive, isBookComplete]);
-
     const lastMessage = messages[messages.length - 1];
+    const isCharacterStep = flatSteps[currentStepIndex]?.step.includes("Key Characters");
     const isMarketingPhase = flatSteps[currentStepIndex]?.phase.includes("Finalization & Marketing");
     const isCoverPhase = flatSteps[currentStepIndex]?.phase.includes("Cover Design");
-
+    
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
             <header className="flex-shrink-0 flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800 shadow-sm">
@@ -453,6 +250,21 @@ export default function App() {
                         {isHeaderMenuOpen && (
                             <div className="absolute top-full right-0 mt-2 w-64 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
                                 <div className="p-4 space-y-4">
+                                     <div className="space-y-2">
+                                        <label htmlFor="ai-model-select" className="font-medium text-gray-200 flex items-center gap-2">
+                                            <span className="text-base">🧠</span> AI Model
+                                        </label>
+                                        <select 
+                                            id="ai-model-select"
+                                            value={selectedModelId}
+                                            onChange={(e) => setSelectedModelId(e.target.value)}
+                                            className="w-full p-2 bg-gray-600 rounded-md text-white border border-gray-500 focus:ring-2 focus:ring-teal-400"
+                                        >
+                                            {AI_MODELS.filter(model => model.active).map(model => (
+                                                <option key={model.id} value={model.id}>{model.displayName}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     <div className="flex items-center justify-between">
                                         <label htmlFor="auto-pilot-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
                                             <span className="text-base">🚀</span> Auto-Pilot
@@ -489,50 +301,45 @@ export default function App() {
                     </div>
                 </div>
             </header>
-
             <div className="flex flex-row flex-1 overflow-hidden">
-                <div
-                    className={`flex flex-col flex-shrink-0 h-full bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ${isChatOpen ? 'w-[500px]' : 'w-16'}`}
-                >
+                <div className={`flex flex-col flex-shrink-0 h-full bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ${isChatOpen ? 'w-[500px]' : 'w-16'}`}>
                     {isChatOpen ? (
                         <div className="relative flex flex-col flex-1 min-w-0 min-h-0">
                             <div className="flex-shrink-0 p-4 border-b border-gray-700 flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
-                                <button
-                                    onClick={() => setIsChatOpen(false)}
-                                    className="p-1 rounded-full text-gray-400 hover:bg-gray-600 transition-colors"
-                                    title="Collapse chat"
-                                    aria-label="Collapse chat"
-                                >
+                                <button onClick={() => setIsChatOpen(false)} className="p-1 rounded-full text-gray-400 hover:bg-gray-600 transition-colors" title="Collapse chat" aria-label="Collapse chat">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
                             <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={handleSendMessage} />
-                             <div className="p-4 border-t border-gray-700">
-                                <ComboBox
-                                    options={lastMessage?.options || []}
-                                    onSendMessage={handleSendMessage}
-                                    isLoading={isLoading}
-                                />
+                             <div className="p-4 border-t border-gray-700 flex items-center gap-2">
+                                <ComboBox options={lastMessage?.options || []} onSendMessage={(text) => handleSendMessage(text, false, true)} isLoading={isLoading} />
+                                {isCharacterStep && (
+                                    <button 
+                                        onClick={() => handleSendMessage(`Research names for ${bookState['Key Characters Defined'] || 'the main character'}`, false, false)}
+                                        disabled={isLoading}
+                                        className="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 transition-colors"
+                                        title="Research character names"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11.01V11a4 4 0 00-8 0v.01a5 5 0 013.43-4.67A6.97 6.97 0 008 16c0 .34.024.673.07 1H4a2 2 0 01-2-2v-1a1 1 0 011-1h14a1 1 0 011 1v1a2 2 0 01-2 2h-4.07z" />
+                                        </svg>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center pt-4">
-                            <button
-                                onClick={() => setIsChatOpen(true)}
-                                className="p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                                title="Expand chat"
-                                aria-label="Expand chat"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.redacted_949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Expand chat" aria-label="Expand chat">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.252-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                             </button>
                         </div>
                     )}
                 </div>
-
                 <main className="flex-1 flex flex-col min-w-0 h-full bg-gray-850">
                     <div className="flex-shrink-0 p-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between shadow-md">
                         <div className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
+                            <ViewToggle label="Dashboard" view="dashboard" activeView={mainView} onClick={setMainView} />
                             <ViewToggle label="Editor" view="editor" activeView={mainView} onClick={setMainView} />
                             <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
                             {isMarketingPhase && <ViewToggle label="Marketing" view="marketing" activeView={mainView} onClick={setMainView} />}
@@ -540,10 +347,10 @@ export default function App() {
                             {isDevMode && <ViewToggle label="Dev" view="dev" activeView={mainView} onClick={setMainView} />}
                         </div>
                     </div>
-
                     <div className="flex-1 overflow-y-auto">
                         {mainView === 'progress' && <ProgressTracker progress={progress} />}
                         {mainView === 'editor' && <MarkdownEditor bookState={bookState} exportBook={exportBook} isBookComplete={isBookComplete} />}
+                        {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}
                         {mainView === 'marketing' && <MarketingInfo bookState={bookState} />}
                         {mainView === 'cover' && <CoverDesigner bookState={bookState} onSelectCover={(imageUrl) => setBookState(prev => ({ ...prev, coverImageUrl: imageUrl }))} />}
                         {mainView === 'dev' && <StateInspector bookState={bookState} />}
