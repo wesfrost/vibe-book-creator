@@ -2,29 +2,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BookState } from '../types';
 import { renderMarkdown } from '../utils/markdownRenderer';
-import { exportAsDocx, exportAsMarkdown, exportAsTxt } from '../services/exportService';
 
 interface MarkdownEditorProps {
     bookState: BookState;
+    exportBook: (format: 'kdp' | 'docx') => void;
+    isBookComplete: boolean;
 }
 
-const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ bookState }) => {
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ bookState, exportBook, isBookComplete }) => {
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const exportMenuRef = useRef<HTMLDivElement>(null);
 
-    const handleExport = (format: 'docx' | 'md' | 'txt') => {
-        const title = (bookState['Core Idea Locked In'] as string)?.replace(/\s+/g, '-') || 'manuscript';
-        switch(format) {
-            case 'docx':
-                exportAsDocx(bookState, title);
-                break;
-            case 'md':
-                exportAsMarkdown(bookState, title);
-                break;
-            case 'txt':
-                exportAsTxt(bookState, title);
-                break;
-        }
+    const handleExport = (format: 'kdp' | 'docx') => {
+        exportBook(format);
         setIsExportMenuOpen(false);
     };
 
@@ -56,7 +46,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ bookState }) => {
                  <div className="relative" ref={exportMenuRef}>
                     <button 
                         onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                        disabled={!hasChapters && !hasOutline}
+                        disabled={!isBookComplete}
                         className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm py-2 px-4 rounded-lg shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -64,21 +54,16 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ bookState }) => {
                         <svg className={`w-4 h-4 ml-1 transform transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     {isExportMenuOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
+                        <div className="absolute right-0 mt-2 w-56 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
                             <ul className="py-1">
                                 <li>
                                     <button onClick={() => handleExport('docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500 flex items-center gap-2">
-                                        <span className="font-mono text-xs bg-gray-600 px-1 rounded">.docx</span> Microsoft Word
+                                        <span className="font-mono text-xs bg-gray-600 px-1 rounded">.docx</span> Google Docs / Word
                                     </button>
                                 </li>
                                 <li>
-                                    <button onClick={() => handleExport('md')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500 flex items-center gap-2">
-                                        <span className="font-mono text-xs bg-gray-600 px-1 rounded">.md</span> Markdown
-                                    </button>
-                                </li>
-                                <li>
-                                    <button onClick={() => handleExport('txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500 flex items-center gap-2">
-                                        <span className="font-mono text-xs bg-gray-600 px-1 rounded">.txt</span> Plain Text
+                                    <button onClick={() => handleExport('kdp')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-500 flex items-center gap-2">
+                                        <span className="font-mono text-xs bg-gray-600 px-1 rounded">.zip</span> KDP Package
                                     </button>
                                 </li>
                             </ul>

@@ -92,16 +92,24 @@ const getResponseSchemaForCelebration = () => ({
     required: ["message", "options"],
 });
 
+// --- Golden Rule Prompt Enhancer ---
+const applyGoldenRule = (prompt: string): string => {
+    const goldenRule = "Crucially, you must always end your response with a clear, direct question to guide the user to the next logical step.";
+    return `${prompt}\n\n**Golden Rule:** ${goldenRule}`;
+};
+
 // --- Prompt Construction ---
 function constructPrompt(history: ChatMessage[], currentStep: string, bookState: BookState): string {
     const historyString = history.slice(-5).map(m => `${m.sender}: ${m.text}`).join('\n');
     let taskInstruction = `Based on all the above, perform your expert function for the author's current task.`;
 
-    if (currentStep === "KDP Keywords Researched" || currentStep === "Book Categories Selected") {
+    if (currentStep === "Genre Defined") {
+        taskInstruction = `Research and return a list of the top 10 bestselling book genres on Amazon KDP, ordered from most to least popular. Present this to the user and explain why choosing a popular genre is a key strategic decision for a new author.`
+    } else if (currentStep === "KDP Keywords Researched" || currentStep === "Book Categories Selected") {
         taskInstruction = `Based on the book's details, perform in-depth research and provide the requested marketing materials. Explain the 'why' behind your recommendations.`
     }
     
-    return `
+    const basePrompt = `
 Here is the recent conversation history:
 ${historyString}
 
@@ -112,13 +120,13 @@ The author's current task is: **${currentStep}**.
 
 ${taskInstruction}
 `;
+    return applyGoldenRule(basePrompt);
 }
 
 // --- Main Orchestration Logic ---
 export const processStep = async (history: ChatMessage[], currentStep: string, bookState: BookState, isDevMode: boolean = false): Promise<any> => {
     if (isDevMode) {
-        // In Dev Mode, return a canned response instantly.
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 300));
         return getMockResponseForStep(currentStep);
     }
 
@@ -126,7 +134,6 @@ export const processStep = async (history: ChatMessage[], currentStep: string, b
     let responseSchema;
     let prompt = constructPrompt(history, currentStep, bookState);
 
-    // Phase 1 & 2: Strategy
     const strategistSteps = [
         "Genre Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified",
         "Global Outline Approved", "Key Characters Defined", "Pacing Strategy Agreed",
@@ -136,18 +143,18 @@ export const processStep = async (history: ChatMessage[], currentStep: string, b
         "Detailed Outline Approved", "Key Figures Defined", "Scene Outline Approved"
     ];
 
-    // Phase 3: Writing
     const writerSteps = ["Generate idea for", "Draft Chapter", "Draft Module"];
     
-    // Phase 5: Marketing
     const marketerSteps = ["KDP Keywords Researched", "Book Categories Selected", "Compelling Blurb Drafted"];
     
-    // Default/Orchestrator steps
     const orchestratorSteps = ["Number of Chapters Defined", "Number of Modules Defined", "Final Manuscript Review", "Revision & Final Polish Complete"];
 
     if (strategistSteps.includes(currentStep)) {
         persona = STRATEGIST_PERSONA;
-        if (currentStep.includes("Outline Approved")) {
+        if (currentStep === "Genre Defined") {
+            responseSchema = getResponseSchemaForList('genres');
+        }
+        else if (currentStep.includes("Outline Approved")) {
             responseSchema = getResponseSchemaForOutline();
         } else if (currentStep.includes("Key Characters") || currentStep.includes("Key Figures")) {
              responseSchema = getResponseSchemaForList('characters or figures');
@@ -168,7 +175,7 @@ export const processStep = async (history: ChatMessage[], currentStep: string, b
         } else {
              responseSchema = getResponseSchemaForText();
         }
-    } else { // Orchestrator handles the rest
+    } else { 
         persona = ORCHESTRATOR_PERSONA;
          if (currentStep === "Final Manuscript Review") {
              responseSchema = getResponseSchemaForOptions('review option');
@@ -200,7 +207,7 @@ export const analyzeChapter = async (chapterContent: string, bookState: BookStat
     `;
     const response = await callGemini({
         systemInstruction: EDITOR_PERSONA,
-        prompt,
+        prompt: applyGoldenRule(prompt),
         responseSchema: getResponseSchemaForText()
     });
     return response.message || "I'm sorry, my analytical engine seems to be on a coffee break.";
@@ -220,7 +227,7 @@ export const brainstormIdeas = async (currentStep: string, bookState: BookState,
         `;
         const response = await callGemini({
             systemInstruction: STRATEGIST_PERSONA,
-            prompt,
+            prompt: applyGoldenRule(prompt),
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {

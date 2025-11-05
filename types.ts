@@ -24,12 +24,15 @@ export interface ProgressPhase {
 
 export type BookState = {
   [key: string]: any;
+  workingTitle?: string;
+  title?: string;
   chapterCount?: number;
   chapters?: { title: string; idea?: string; content: string }[];
   globalOutline?: string;
   kdpKeywords?: string[];
   bookCategories?: string[];
   blurb?: string;
+  coverImageUrl?: string;
 };
 
 export interface BrainstormingIdea {

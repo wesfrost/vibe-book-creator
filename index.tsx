@@ -8,9 +8,13 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+let root = (rootElement as any)._reactRootContainer;
+if (!root) {
+  root = ReactDOM.createRoot(rootElement);
+  (rootElement as any)._reactRootContainer = root;
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}

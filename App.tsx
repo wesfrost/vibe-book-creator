@@ -3,17 +3,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, ProgressPhase, BookState } from './types';
 import { FICTION_PROGRESS, HOW_TO_PROGRESS, MEMOIR_PROGRESS, FLASH_FICTION_PROGRESS, BOOK_FORMAT_OPTIONS } from './config';
 import { processStep, analyzeChapter } from './services/orchestrationService';
-import { generateKDPPackage } from './services/exportService';
-import { saveAs } from 'file-saver';
+import { generateKDPPackage, exportAsMarkdown } from './services/exportService';
 import ProgressTracker from './components/ProgressTracker';
 import ChatWindow from './components/ChatWindow';
 import UserInput from './components/UserInput';
 import MarkdownEditor from './components/MarkdownEditor';
 import StateInspector from './components/StateInspector';
 import MarketingInfo from './components/MarketingInfo';
+import CoverDesigner from './components/CoverDesigner';
+import GenreSelect from './components/GenreSelect';
 
 type ChapterDraftingStage = 'idea' | 'draft' | 'review' | 'inactive';
-type MainView = 'progress' | 'editor' | 'dev' | 'marketing';
+type MainView = 'progress' | 'editor' | 'dev' | 'marketing' | 'cover';
+type ExportType = 'kdp' | 'md' | 'docx';
 
 const getUpdatedProgress = (currentProgress: ProgressPhase[], stepName: string): ProgressPhase[] => {
     const newProgress = JSON.parse(JSON.stringify(currentProgress));
@@ -61,13 +63,19 @@ export default function App() {
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const headerMenuRef = useRef<HTMLDivElement>(null);
 
-    const handleDownload = async () => {
+    const exportBook = async (type: ExportType) => {
         if (!bookState.title) {
-            alert("Please set a title for your book before exporting.");
+            console.error("Book title is not set. Cannot export.");
             return;
         }
-        const zipBlob = await generateKDPPackage(bookState);
-        saveAs(zipBlob, `${bookState.title.replace(/\s+/g, '_')}_KDP.zip`);
+        if (type === 'kdp') {
+            await generateKDPPackage(bookState);
+        } else if (type === 'md') {
+            exportAsMarkdown(bookState);
+        } else if (type === 'docx') {
+            const { exportAsDocx } = await import('./services/exportService');
+            exportAsDocx(bookState);
+        }
     };
 
     useEffect(() => {
@@ -155,7 +163,8 @@ export default function App() {
                 id: (Date.now() + 1).toString(), 
                 sender: 'jim', 
                 text: response.message, 
-                options: response.options || [] 
+                options: response.options || [],
+                items: response.items || []
             };
 
             setBookState(newBookState);
@@ -165,6 +174,41 @@ export default function App() {
             setMessages(prev => [...prev, jimResponse]);
             setIsLoading(false);
             return;
+        }
+
+        if (flatSteps[currentStepIndex].step === "Working Title Defined") {
+            const updatedBookState = { ...bookState, workingTitle: text, [flatSteps[currentStepIndex].step]: text };
+            setBookState(updatedBookState);
+
+            const updatedProgress = getUpdatedProgress(progress, "Working Title Defined");
+            setProgress(updatedProgress);
+
+            const nextStepIndex = currentStepIndex + 1;
+            setCurrentStepIndex(nextStepIndex);
+            
+            const nextTask = flatSteps[nextStepIndex];
+            const response = await processStep(currentHistory, nextTask.step, updatedBookState, isDevMode);
+            const jimResponse: ChatMessage = { 
+                id: (Date.now() + 1).toString(), 
+                sender: 'jim', 
+                text: response.message, 
+                options: response.options || [],
+                items: response.items || []
+            };
+            setMessages(prev => [...prev, jimResponse]);
+            setIsLoading(false);
+            return;
+        }
+        
+        if (flatSteps[currentStepIndex].step === "Final Title Locked In") {
+            const updatedBookState = { ...bookState, title: text, [flatSteps[currentStepIndex].step]: text };
+            setBookState(updatedBookState);
+        }
+
+        if (flatSteps[currentStepIndex].phase === "Cover Design") {
+            if (flatSteps[currentStepIndex].step === "AI-Powered Image Generation") {
+                setMainView('cover');
+            }
         }
 
         let newMessages: ChatMessage[] = [];
@@ -345,7 +389,7 @@ export default function App() {
 
         const nextTask = finalFlatSteps[nextStepIndex];
         const response = await processStep(currentHistory, nextTask.step, newBookState, isDevMode);
-        const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [] };
+        const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [], items: response.items || [] };
 
         if (response.items) {
             jimResponse.text += "\n\n" + response.items.map((item: string) => `- ${item}`).join("\n");
@@ -388,7 +432,9 @@ export default function App() {
         return () => clearTimeout(timer);
     }, [messages, isAutoMode, isLoading, currentStepIndex, chapterDrafting.isActive, isBookComplete]);
 
-    const isMarketingPhase = flatSteps[currentStepIndex]?.phase.includes("Finalization & Export");
+    const isMarketingPhase = flatSteps[currentStepIndex]?.phase.includes("Finalization & Marketing");
+    const isCoverPhase = flatSteps[currentStepIndex]?.phase.includes("Cover Design");
+    const showGenreSelect = messages[messages.length - 1]?.items?.length > 0 && flatSteps[currentStepIndex].step === "Genre Defined";
 
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
@@ -397,15 +443,6 @@ export default function App() {
                     <h1 className="text-lg font-semibold text-white ml-2">Vibe Book Creator</h1>
                 </div>
                 <div className="flex items-center">
-                    {isBookComplete && (
-                         <button 
-                            onClick={handleDownload}
-                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            Download KDP Package
-                        </button>
-                    )}
                     <div className="relative ml-2" ref={headerMenuRef}>
                         <button 
                             onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
@@ -471,11 +508,17 @@ export default function App() {
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
-                            <ChatWindow messages={messages} isLoading={isLoading} />
-                            <UserInput
-                                onSendMessage={handleSendMessage}
-                                isLoading={isLoading}
-                            />
+                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={handleSendMessage} />
+                            {showGenreSelect ? (
+                                <div className="p-4 border-t border-gray-700">
+                                    <GenreSelect genres={messages[messages.length - 1].items} onSelectGenre={handleSendMessage} />
+                                </div>
+                            ) : (
+                                <UserInput
+                                    onSendMessage={handleSendMessage}
+                                    isLoading={isLoading}
+                                />
+                            )}
                         </div>
                     ) : (
                         <div className="flex flex-col items-center pt-4">
@@ -485,7 +528,7 @@ export default function App() {
                                 title="Expand chat"
                                 aria-label="Expand chat"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.redacted_949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                             </button>
                         </div>
                     )}
@@ -497,14 +540,16 @@ export default function App() {
                             <ViewToggle label="Editor" view="editor" activeView={mainView} onClick={setMainView} />
                             <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
                             {isMarketingPhase && <ViewToggle label="Marketing" view="marketing" activeView={mainView} onClick={setMainView} />}
+                            {isCoverPhase && <ViewToggle label="Cover" view="cover" activeView={mainView} onClick={setMainView} />}
                             {isDevMode && <ViewToggle label="Dev" view="dev" activeView={mainView} onClick={setMainView} />}
                         </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
                         {mainView === 'progress' && <ProgressTracker progress={progress} />}
-                        {mainView === 'editor' && <MarkdownEditor bookState={bookState} />}
+                        {mainView === 'editor' && <MarkdownEditor bookState={bookState} exportBook={exportBook} isBookComplete={isBookComplete} />}
                         {mainView === 'marketing' && <MarketingInfo bookState={bookState} />}
+                        {mainView === 'cover' && <CoverDesigner bookState={bookState} onSelectCover={(imageUrl) => setBookState(prev => ({ ...prev, coverImageUrl: imageUrl }))} />}
                         {mainView === 'dev' && <StateInspector bookState={bookState} />}
                     </div>
                 </main>

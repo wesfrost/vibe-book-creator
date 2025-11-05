@@ -1,20 +1,39 @@
 
 import { BookState } from '../types';
 import JSZip from 'jszip';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, PageBreak, Header, Footer, PageNumber } from 'docx';
 
-export const generateKDPPackage = async (bookState: BookState) => {
+// A new helper function to handle downloads in sandboxed environments
+const triggerDownload = (blob: Blob, fileName: string) => {
+    // Create a Blob URL
+    const url = window.URL.createObjectURL(blob);
+    
+    // Create a temporary anchor tag
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    
+    // Append to the body, click, and then remove
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+};
+
+export const generateKDPPackage = async (bookState: BookState): Promise<void> => {
     const zip = new JSZip();
 
-    let manuscriptContent = `Title: ${bookState.title || 'Untitled Book'}\n\n`;
-    if (bookState.chapters) {
-        bookState.chapters.forEach((chapter, index) => {
-            manuscriptContent += `Chapter ${index + 1}: ${chapter.title}\n\n`;
-            manuscriptContent += `${chapter.content}\n\n`;
-        });
-    }
-    zip.file("manuscript.txt", manuscriptContent);
+    const doc = new Document({
+        sections: [{
+            ...generateDocxProperties(bookState),
+            children: generateDocumentContent(bookState),
+        }],
+    });
+
+    const docBlob = await Packer.toBlob(doc);
+    zip.file(`${bookState.title || 'manuscript'}.docx`, docBlob);
 
     const metadata = {
         title: bookState.title,
@@ -26,82 +45,107 @@ export const generateKDPPackage = async (bookState: BookState) => {
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    return zipBlob;
+    triggerDownload(zipBlob, `${bookState.title?.replace(/\s+/g, '_') || 'book'}_KDP.zip`);
 };
 
-const generateDocumentContent = (bookState: BookState) => {
+const generateDocumentContent = (bookState: BookState): Paragraph[] => {
     const paragraphs: Paragraph[] = [];
 
+    // Title Page
     if (bookState.title) {
         paragraphs.push(new Paragraph({
             children: [new TextRun({ text: bookState.title, bold: true, size: 48 })],
-            spacing: { after: 200 },
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 2000, after: 2000 },
         }));
+        paragraphs.push(new Paragraph({ children: [new PageBreak()] }));
     }
 
-    if (bookState.globalOutline) {
-        paragraphs.push(new Paragraph({
-            children: [new TextRun({ text: "Outline", bold: true, size: 36 })],
-            spacing: { after: 200 },
-        }));
-        bookState.globalOutline.split('\n').forEach(line => {
-            paragraphs.push(new Paragraph({ text: line }));
-        });
-    }
-
+    // Chapters
     if (bookState.chapters) {
         bookState.chapters.forEach((chapter, index) => {
             paragraphs.push(new Paragraph({
-                children: [new TextRun({ text: `Chapter ${index + 1}: ${chapter.title}`, bold: true, size: 36 })],
+                children: [new TextRun({ text: chapter.title, bold: true, size: 36 })],
+                alignment: AlignmentType.CENTER,
                 spacing: { after: 200 },
             }));
-            chapter.content.split('\n').forEach(line => {
-                paragraphs.push(new Paragraph({ text: line }));
-            });
+
+            if (typeof chapter.content === 'string') {
+                const contentParagraphs = chapter.content.split('\n').filter(line => line.trim() !== '');
+                contentParagraphs.forEach(line => {
+                    paragraphs.push(new Paragraph({ 
+                        text: line, 
+                        indent: { firstLine: "0.5in" },
+                        spacing: { after: 0 }
+                    }));
+                });
+            }
+            if (index < bookState.chapters.length - 1) {
+                paragraphs.push(new Paragraph({ children: [new PageBreak()] }));
+            }
         });
     }
     return paragraphs;
 };
 
-export const exportAsDocx = (bookState: BookState, fileName: string) => {
+const generateDocxProperties = (bookState: BookState) => ({
+    headers: {
+        default: new Header({
+            children: [
+                new Paragraph({
+                    children: [new TextRun(bookState.title || 'Your Book Title')],
+                    alignment: AlignmentType.RIGHT,
+                }),
+            ],
+        }),
+    },
+    footers: {
+        default: new Footer({
+            children: [
+                new Paragraph({
+                    children: [new TextRun({ children: [PageNumber.CURRENT] })],
+                    alignment: AlignmentType.CENTER,
+                }),
+            ],
+        }),
+    },
+});
+
+export const exportAsDocx = async (bookState: BookState) => {
+    if (!bookState.title) {
+        console.error("Book title is not set. Cannot export.");
+        return;
+    }
     const doc = new Document({
         sections: [{
-            properties: {},
+            ...generateDocxProperties(bookState),
             children: generateDocumentContent(bookState),
         }],
     });
 
-    Packer.toBlob(doc).then(blob => {
-        saveAs(blob, `${fileName}.docx`);
-    });
+    const blob = await Packer.toBlob(doc);
+    triggerDownload(blob, `${bookState.title.replace(/\s+/g, '_')}.docx`);
 };
 
-export const exportAsMarkdown = (bookState: BookState, fileName: string) => {
-    let markdownContent = `# ${bookState.title || 'Untitled Book'}\n\n`;
+export const exportAsMarkdown = (bookState: BookState) => {
+    if (!bookState.title) {
+        console.error("Book title is not set. Cannot export.");
+        return;
+    }
+
+    let markdownContent = `# ${bookState.title}\n\n`;
+
     if (bookState.globalOutline) {
         markdownContent += `## Outline\n\n${bookState.globalOutline}\n\n`;
     }
+
     if (bookState.chapters) {
-        bookState.chapters.forEach((chapter, index) => {
-            markdownContent += `## Chapter ${index + 1}: ${chapter.title}\n\n`;
+        bookState.chapters.forEach((chapter) => {
+            markdownContent += `## ${chapter.title}\n\n`;
             markdownContent += `${chapter.content}\n\n`;
         });
     }
-    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
-    saveAs(blob, `${fileName}.md`);
-};
 
-export const exportAsTxt = (bookState: BookState, fileName: string) => {
-    let textContent = `Title: ${bookState.title || 'Untitled Book'}\n\n`;
-    if (bookState.globalOutline) {
-        textContent += `Outline\n\n${bookState.globalOutline}\n\n`;
-    }
-    if (bookState.chapters) {
-        bookState.chapters.forEach((chapter, index) => {
-            textContent += `Chapter ${index + 1}: ${chapter.title}\n\n`;
-            textContent += `${chapter.content}\n\n`;
-        });
-    }
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    saveAs(blob, `${fileName}.txt`);
+    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+    triggerDownload(blob, `${bookState.title.replace(/\s+/g, '_')}.md`);
 };

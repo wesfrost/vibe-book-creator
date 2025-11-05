@@ -6,9 +6,10 @@ import MessageBubble from './MessageBubble';
 interface ChatWindowProps {
     messages: ChatMessage[];
     isLoading: boolean;
+    onSendMessage: (text: string) => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMessage }) => {
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -18,8 +19,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
     return (
         <div className="flex-1 p-6 overflow-y-auto bg-gray-900">
             <div className="max-w-4xl mx-auto space-y-6">
-                {messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} />
+                {messages.map((msg, index) => (
+                    <MessageBubble key={`${msg.id}-${index}`} message={msg} onSendMessage={onSendMessage} />
                 ))}
                 {isLoading && (
                     <div className="flex items-center space-x-2">

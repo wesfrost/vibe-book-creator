@@ -6,6 +6,7 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Genre Defined", completed: false },
             { name: "Core Idea Locked In", completed: false },
             { name: "Vibe Defined", completed: false },
@@ -24,7 +25,6 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
     {
         name: "Phase 3: AI-Powered Drafting & Review",
         steps: [
-            // Dynamically populated with chapters
             { name: "Final Manuscript Review", completed: false },
         ]
     },
@@ -36,11 +36,22 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
         ]
     },
     {
-        name: "Phase 5: Finalization & Export",
+        name: "Phase 5: Finalization & Marketing",
         steps: [
             { name: "KDP Keywords Researched", completed: false },
             { name: "Book Categories Selected", completed: false },
             { name: "Compelling Blurb Drafted", completed: false },
+            { name: "Final Title Locked In", completed: false },
+        ]
+    },
+    {
+        name: "Phase 6: Cover Design",
+        steps: [
+            { name: "Style & Vibe Analysis", completed: false },
+            { name: "Core Symbolism Prompt", completed: false },
+            { name: "AI-Powered Image Generation", completed: false },
+            { name: "Typography & Layout", completed: false },
+            { name: "KDP Cover Assembly", completed: false },
         ]
     }
 ];
@@ -50,6 +61,7 @@ export const HOW_TO_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Topic & Niche Defined", completed: false },
             { name: "Core Problem Identified", completed: false },
             { name: "The 'Promise' Defined", completed: false },
@@ -68,7 +80,6 @@ export const HOW_TO_PROGRESS: ProgressPhase[] = [
     {
         name: "Phase 3: AI-Powered Drafting & Review",
         steps: [
-            // Dynamically populated with modules
             { name: "Final Manuscript Review", completed: false },
         ]
     },
@@ -80,11 +91,22 @@ export const HOW_TO_PROGRESS: ProgressPhase[] = [
         ]
     },
     {
-        name: "Phase 5: Finalization & Export",
+        name: "Phase 5: Finalization & Marketing",
         steps: [
             { name: "KDP Keywords Researched", completed: false },
             { name: "Book Categories Selected", completed: false },
             { name: "Compelling Blurb Drafted", completed: false },
+            { name: "Final Title Locked In", completed: false },
+        ]
+    },
+    {
+        name: "Phase 6: Cover Design",
+        steps: [
+            { name: "Style & Vibe Analysis", completed: false },
+            { name: "Core Symbolism Prompt", completed: false },
+            { name: "AI-Powered Image Generation", completed: false },
+            { name: "Typography & Layout", completed: false },
+            { name: "KDP Cover Assembly", completed: false },
         ]
     }
 ];
@@ -94,6 +116,7 @@ export const MEMOIR_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Central Theme Defined", completed: false },
             { name: "Core Narrative Arc Locked In", completed: false },
             { name: "Key Life Periods Identified", completed: false },
@@ -112,7 +135,6 @@ export const MEMOIR_PROGRESS: ProgressPhase[] = [
     {
         name: "Phase 3: AI-Powered Drafting & Review",
         steps: [
-            // Dynamically populated with chapters
             { name: "Final Manuscript Review", completed: false },
         ]
     },
@@ -124,11 +146,22 @@ export const MEMOIR_PROGRESS: ProgressPhase[] = [
         ]
     },
     {
-        name: "Phase 5: Finalization & Export",
+        name: "Phase 5: Finalization & Marketing",
         steps: [
             { name: "KDP Keywords Researched", completed: false },
             { name: "Book Categories Selected", completed: false },
             { name: "Compelling Blurb Drafted", completed: false },
+            { name: "Final Title Locked In", completed: false },
+        ]
+    },
+    {
+        name: "Phase 6: Cover Design",
+        steps: [
+            { name: "Style & Vibe Analysis", completed: false },
+            { name: "Core Symbolism Prompt", completed: false },
+            { name: "AI-Powered Image Generation", completed: false },
+            { name: "Typography & Layout", completed: false },
+            { name: "KDP Cover Assembly", completed: false },
         ]
     }
 ];
@@ -138,6 +171,7 @@ export const FLASH_FICTION_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Genre Defined", completed: false },
             { name: "Core Idea Locked In", completed: false },
             { name: "Vibe Defined", completed: false },
@@ -162,6 +196,17 @@ export const FLASH_FICTION_PROGRESS: ProgressPhase[] = [
         steps: [
             { name: "Full Book Compiled", completed: false },
             { name: "Compelling Blurb Drafted", completed: false },
+            { name: "Final Title Locked In", completed: false },
+        ]
+    },
+    {
+        name: "Phase 5: Cover Design",
+        steps: [
+            { name: "Style & Vibe Analysis", completed: false },
+            { name: "Core Symbolism Prompt", completed: false },
+            { name: "AI-Powered Image Generation", completed: false },
+            { name: "Typography & Layout", completed: false },
+            { name: "KDP Cover Assembly", completed: false },
         ]
     }
 ];
