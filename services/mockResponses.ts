@@ -54,9 +54,6 @@ export const getMockResponseForStep = (step: string): any => {
 
 export const getMockBrainstormIdeas = (): BrainstormingIdea[] => {
     return [
-        { idea: 'A chef who can taste memories.', rationale: 'Connects the universal experience of food with the powerful emotion of nostalgia.' },
-        { idea: 'An AI that develops a soul and demands rights.', rationale: 'Taps into current technological anxieties and timeless questions of consciousness.' },
-        { idea: 'A city powered by forgotten dreams.', rationale: 'A high-concept fantasy idea that allows for limitless visual and narrative creativity.' },
     ];
 };
 
