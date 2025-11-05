@@ -54,8 +54,7 @@ export default function App() {
         currentChapter: number;
         stage: ChapterDraftingStage;
     }>({ isActive: false, currentChapter: 1, stage: 'inactive' });
-    const [brainstormSuggestions, setBrainstormSuggestions] = useState<BrainstormingIdea[]>([]);
-    const [isBrainstorming, setIsBrainstorming] = useState(false);
+
     const [isBookComplete, setIsBookComplete] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(true);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -93,30 +92,7 @@ export default function App() {
         setFlatSteps(initialFlatSteps);
     }, []);
 
-     useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        let isMounted = true;
 
-        if (lastMessage?.sender === 'jim' && lastMessage.options && lastMessage.options.length > 0 && currentStepIndex > 0) {
-            const fetchIdeas = async () => {
-                if (!isMounted) return;
-                setIsBrainstorming(true);
-                setBrainstormSuggestions([]);
-                const ideas = await brainstormIdeas(flatSteps[currentStepIndex].step, bookState, isDevMode);
-                if (isMounted) {
-                    setBrainstormSuggestions(ideas);
-                    setIsBrainstorming(false);
-                }
-            };
-            fetchIdeas();
-        } else {
-             setBrainstormSuggestions([]);
-        }
-
-        return () => {
-            isMounted = false;
-        };
-    }, [messages, currentStepIndex, isDevMode]);
     
     const handleToggleAutoMode = () => {
         const newAutoModeState = !isAutoMode;
@@ -484,9 +460,6 @@ export default function App() {
                             <UserInput
                                 onSendMessage={handleSendMessage}
                                 isLoading={isLoading}
-                                lastMessage={messages[messages.length - 1]}
-                                brainstormSuggestions={brainstormSuggestions}
-                                isBrainstorming={isBrainstorming}
                             />
                         </div>
                     ) : (

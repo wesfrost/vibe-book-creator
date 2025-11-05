@@ -1,13 +1,11 @@
-// FIX: Removed non-exported member 'ResponseSchema' from import.
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Schema, Type } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface GeminiCallParams {
     systemInstruction: string;
     prompt: string;
-    // FIX: The ResponseSchema type is not exported from @google/genai. Replaced with any.
-    responseSchema: any;
+    responseSchema: Schema;
     temperature?: number;
 }
 
