@@ -6,14 +6,14 @@ export interface AIModel {
     active: boolean;
 }
 
-// Sticking to the most compatible model name for the v1beta API provided by the importmap.
+// Using a stable and specific model name as recommended by the latest documentation.
 export const AI_MODELS: AIModel[] = [
     {
-        id: "gemini-1.5-flash-latest",
-        displayName: "Gemini 1.5 Flash",
+        id: "gemini-1.5-pro-latest",
+        displayName: "Gemini 1.5 Pro",
         description: "A powerful and reliable model for a wide range of tasks.",
         active: true,
     }
 ];
 
-export const DEFAULT_AI_MODEL_ID: string = "gemini-1.5-flash-latest";
+export const DEFAULT_AI_MODEL_ID: string = "gemini-1.5-pro-latest";
