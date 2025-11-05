@@ -104,7 +104,9 @@ function constructPrompt(history: ChatMessage[], currentStep: string, bookState:
     let taskInstruction = `Based on all the above, perform your expert function for the author's current task.`;
 
     if (currentStep === "Genre Defined") {
-        taskInstruction = `Research and return a list of the top 10 bestselling book genres on Amazon KDP, ordered from most to least popular. Present this to the user and explain why choosing a popular genre is a key strategic decision for a new author.`
+        taskInstruction = `Based on the user's book format, research and define the top 4-5 most commercially successful subgenres. For each, provide a short, snappy "description" (what it is) and a "rationale" (why it sells). Your main "message" should be a brief, encouraging conversational text that introduces these options, but DO NOT list the genres in the message itself; they should only be in the structured "options" data.`
+    } else if (currentStep === "Working Title Defined") {
+        taskInstruction = `Based on the chosen genre, brainstorm 3-4 creative, somewhat funny, and genre-appropriate working titles. Present them as options and explain why a good working title is important for motivation.`
     } else if (currentStep === "KDP Keywords Researched" || currentStep === "Book Categories Selected") {
         taskInstruction = `Based on the book's details, perform in-depth research and provide the requested marketing materials. Explain the 'why' behind your recommendations.`
     }
@@ -135,7 +137,7 @@ export const processStep = async (history: ChatMessage[], currentStep: string, b
     let prompt = constructPrompt(history, currentStep, bookState);
 
     const strategistSteps = [
-        "Genre Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified",
+        "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified",
         "Global Outline Approved", "Key Characters Defined", "Pacing Strategy Agreed",
         "Topic & Niche Defined", "Core Problem Identified", "The 'Promise' Defined", "Target Reader Profiled",
         "Structural Outline Approved", "Key Concepts & Takeaways Defined", "Engagement Strategy Agreed",
@@ -152,7 +154,7 @@ export const processStep = async (history: ChatMessage[], currentStep: string, b
     if (strategistSteps.includes(currentStep)) {
         persona = STRATEGIST_PERSONA;
         if (currentStep === "Genre Defined") {
-            responseSchema = getResponseSchemaForList('genres');
+            responseSchema = getResponseSchemaForOptions('genres');
         }
         else if (currentStep.includes("Outline Approved")) {
             responseSchema = getResponseSchemaForOutline();

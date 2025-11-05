@@ -1,9 +1,9 @@
-
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'jim';
   text: string;
   options?: { title: string; description?: string; rationale?: string }[];
+  items?: string[];
   chapterIdea?: { title: string; idea: string };
   isChapter?: boolean;
   isProgressUpdate?: boolean;

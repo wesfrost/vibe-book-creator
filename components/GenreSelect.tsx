@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 
 interface GenreSelectProps {
-    genres: string[];
+    genres: { title: string; description: string }[];
     onSelectGenre: (genre: string) => void;
 }
 
@@ -30,15 +30,18 @@ const GenreSelect: React.FC<GenreSelectProps> = ({ genres, onSelectGenre }) => {
                 </span>
             </button>
             {isOpen && (
-                <div className="absolute mt-1 w-full rounded-md bg-gray-800 shadow-lg z-10 border border-gray-700">
-                    <ul className="max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                <div className="absolute bottom-full mb-1 w-full rounded-md bg-gray-800 shadow-lg z-10 border border-gray-700">
+                    <ul className="max-h-72 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
                         {genres.map((genre, index) => (
                             <li
                                 key={index}
-                                onClick={() => handleSelect(genre)}
-                                className="text-gray-300 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-teal-600 hover:text-white"
+                                onClick={() => handleSelect(genre.title)}
+                                className="text-gray-300 cursor-pointer select-none relative py-2 pl-4 pr-4 hover:bg-teal-600 hover:text-white"
                             >
-                                <span className="font-normal block truncate">{genre}</span>
+                                <div>
+                                    <p className="font-semibold text-white">{genre.title}</p>
+                                    <p className="text-xs text-gray-400">{genre.description}</p>
+                                </div>
                             </li>
                         ))}
                     </ul>

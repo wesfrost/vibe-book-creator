@@ -6,8 +6,8 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
-            { name: "Working Title Defined", completed: false },
             { name: "Genre Defined", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Core Idea Locked In", completed: false },
             { name: "Vibe Defined", completed: false },
             { name: "Target Audience Identified", completed: false },
@@ -61,6 +61,7 @@ export const HOW_TO_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Genre Defined", completed: false },
             { name: "Working Title Defined", completed: false },
             { name: "Topic & Niche Defined", completed: false },
             { name: "Core Problem Identified", completed: false },
@@ -116,6 +117,7 @@ export const MEMOIR_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept & Research",
         steps: [
             { name: "Book Format Selected", completed: false },
+            { name: "Genre Defined", completed: false },
             { name: "Working Title Defined", completed: false },
             { name: "Central Theme Defined", completed: false },
             { name: "Core Narrative Arc Locked In", completed: false },
@@ -171,8 +173,8 @@ export const FLASH_FICTION_PROGRESS: ProgressPhase[] = [
         name: "Phase 1: Concept",
         steps: [
             { name: "Book Format Selected", completed: false },
-            { name: "Working Title Defined", completed: false },
             { name: "Genre Defined", completed: false },
+            { name: "Working Title Defined", completed: false },
             { name: "Core Idea Locked In", completed: false },
             { name: "Vibe Defined", completed: false },
         ]
