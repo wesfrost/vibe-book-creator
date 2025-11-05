@@ -11,10 +11,6 @@ interface MessageBubbleProps {
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage }) => {
     const isJim = message.sender === 'jim';
 
-    const handleOptionClick = (optionTitle: string) => {
-        onSendMessage(optionTitle);
-    };
-
     if (message.isAnalysis) {
         return (
              <div className="flex items-start gap-4">
@@ -42,22 +38,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
                         {renderMarkdown(message.text)}
                     </div>
                 </div>
-
-                {message.options && message.options.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        {message.options.map((option, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleOptionClick(option.title)}
-                                className="bg-gray-800 text-teal-300 text-sm font-medium py-1.5 px-3 rounded-full hover:bg-teal-500 hover:text-white transition-colors duration-200 shadow-md border border-gray-700"
-                                title={option.description || option.rationale}
-                            >
-                                {option.title}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
                  {message.isAuto && (
                     <div className="text-xs text-gray-500 mt-1 italic">
                         🚀 Auto-pilot

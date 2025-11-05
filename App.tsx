@@ -6,13 +6,11 @@ import { processStep, analyzeChapter } from './services/orchestrationService';
 import { generateKDPPackage, exportAsMarkdown } from './services/exportService';
 import ProgressTracker from './components/ProgressTracker';
 import ChatWindow from './components/ChatWindow';
-import UserInput from './components/UserInput';
 import MarkdownEditor from './components/MarkdownEditor';
 import StateInspector from './components/StateInspector';
 import MarketingInfo from './components/MarketingInfo';
 import CoverDesigner from './components/CoverDesigner';
-import GenreSelect from './components/GenreSelect';
-import TitleInput from './components/TitleInput';
+import ComboBox from './components/ComboBox';
 
 type ChapterDraftingStage = 'idea' | 'draft' | 'review' | 'inactive';
 type MainView = 'progress' | 'editor' | 'dev' | 'marketing' | 'cover';
@@ -427,7 +425,7 @@ export default function App() {
             if (!lastActionableMessage) return;
 
             let actionText = lastActionableMessage.chapterIdea ? '✅ Yes, write it!' : lastActionableMessage.options?.[0]?.title || "Sounds good, let's proceed.";
-            if (actionTerninalText) { handleSendMessage(actionText, true); }
+            if (actionText) { handleSendMessage(actionText, true); }
         };
         const timer = setTimeout(runSimulationStep, 500);
         return () => clearTimeout(timer);
@@ -436,9 +434,6 @@ export default function App() {
     const lastMessage = messages[messages.length - 1];
     const isMarketingPhase = flatSteps[currentStepIndex]?.phase.includes("Finalization & Marketing");
     const isCoverPhase = flatSteps[currentStepIndex]?.phase.includes("Cover Design");
-    const showGenreSelect = lastMessage?.items?.length > 0 && flatSteps[currentStepIndex].step === "Genre Defined";
-    const showTitleInput = lastMessage?.options?.length > 0 && flatSteps[currentStepIndex].step === "Working Title Defined";
-
 
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
@@ -514,13 +509,11 @@ export default function App() {
                             </div>
                             <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={handleSendMessage} />
                              <div className="p-4 border-t border-gray-700">
-                                {showGenreSelect ? (
-                                    <GenreSelect genres={lastMessage.items} onSelectGenre={handleSendMessage} />
-                                ) : showTitleInput ? (
-                                    <TitleInput options={lastMessage.options} onSendMessage={handleSendMessage} isLoading={isLoading} />
-                                ) : (
-                                    <UserInput onSendMessage={handleSendMessage} isLoading={isLoading} />
-                                )}
+                                <ComboBox
+                                    options={lastMessage?.options || []}
+                                    onSendMessage={handleSendMessage}
+                                    isLoading={isLoading}
+                                />
                             </div>
                         </div>
                     ) : (
