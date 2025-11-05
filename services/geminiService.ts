@@ -3,10 +3,13 @@ import { GoogleGenAI, Schema } from "@google/genai";
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
 if (!apiKey) {
     throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables. Please add it to your .env.local file and restart your development server.");
 }
-const ai = new GoogleGenAI(apiKey);
+
+// The constructor expects an object with an 'apiKey' property.
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 interface GeminiCallParams {
     systemInstruction: string;
