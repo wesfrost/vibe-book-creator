@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, ProgressPhase, BookState, BrainstormingIdea } from './types';
+import { ChatMessage, ProgressPhase, BookState } from './types';
 import { FICTION_PROGRESS, HOW_TO_PROGRESS, MEMOIR_PROGRESS, FLASH_FICTION_PROGRESS, BOOK_FORMAT_OPTIONS } from './config';
-import { processStep, brainstormIdeas, analyzeChapter } from './services/orchestrationService';
+import { processStep, analyzeChapter } from './services/orchestrationService';
+import { generateKDPPackage } from './services/exportService';
+import { saveAs } from 'file-saver';
 import ProgressTracker from './components/ProgressTracker';
 import ChatWindow from './components/ChatWindow';
 import UserInput from './components/UserInput';
@@ -14,7 +16,6 @@ type ChapterDraftingStage = 'idea' | 'draft' | 'review' | 'inactive';
 type MainView = 'progress' | 'editor' | 'dev' | 'marketing';
 
 const getUpdatedProgress = (currentProgress: ProgressPhase[], stepName: string): ProgressPhase[] => {
-    // Create a deep copy to avoid mutation issues
     const newProgress = JSON.parse(JSON.stringify(currentProgress));
     for (const phase of newProgress) {
         for (const step of phase.steps) {
@@ -60,6 +61,15 @@ export default function App() {
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const headerMenuRef = useRef<HTMLDivElement>(null);
 
+    const handleDownload = async () => {
+        if (!bookState.title) {
+            alert("Please set a title for your book before exporting.");
+            return;
+        }
+        const zipBlob = await generateKDPPackage(bookState);
+        saveAs(zipBlob, `${bookState.title.replace(/\s+/g, '_')}_KDP.zip`);
+    };
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
@@ -92,8 +102,6 @@ export default function App() {
         setFlatSteps(initialFlatSteps);
     }, []);
 
-
-    
     const handleToggleAutoMode = () => {
         const newAutoModeState = !isAutoMode;
         setIsAutoMode(newAutoModeState);
@@ -105,7 +113,6 @@ export default function App() {
         };
         setMessages(prev => [...prev, modeMessage]);
     };
-
 
     const handleSendMessage = async (text: string, isAuto: boolean = false) => {
         if (isLoading || isBookComplete) return;
@@ -130,9 +137,8 @@ export default function App() {
             else if (text.includes("Memoir")) track = MEMOIR_PROGRESS;
             else if (text.includes("Flash Fiction")) {
                 track = FLASH_FICTION_PROGRESS;
-                newBookState = { ...newBookState, chapterCount: 1 }; // Auto-set for testing
+                newBookState = { ...newBookState, chapterCount: 1 };
             }
-
 
             const newProgress = JSON.parse(JSON.stringify(track));
             newProgress[0].steps[0].completed = true;
@@ -386,60 +392,69 @@ export default function App() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
-            {/* Global Header */}
             <header className="flex-shrink-0 flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800 shadow-sm">
                 <div className="flex items-center">
                     <h1 className="text-lg font-semibold text-white ml-2">Vibe Book Creator</h1>
                 </div>
-                <div className="relative mr-2" ref={headerMenuRef}>
-                    <button 
-                        onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                        className="p-2 rounded-full text-gray-400 hover:bg-gray-700 transition-colors" 
-                        aria-label="More options"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                    </button>
-                    {isHeaderMenuOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-64 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
-                            <div className="p-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label htmlFor="auto-pilot-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
-                                        <span className="text-base">🚀</span> Auto-Pilot
-                                    </label>
-                                    <div className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            id="auto-pilot-toggle-menu" 
-                                            className="sr-only peer"
-                                            checked={isAutoMode}
-                                            onChange={handleToggleAutoMode}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-teal-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                <div className="flex items-center">
+                    {isBookComplete && (
+                         <button 
+                            onClick={handleDownload}
+                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Download KDP Package
+                        </button>
+                    )}
+                    <div className="relative ml-2" ref={headerMenuRef}>
+                        <button 
+                            onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                            className="p-2 rounded-full text-gray-400 hover:bg-gray-700 transition-colors" 
+                            aria-label="More options"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                        </button>
+                        {isHeaderMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
+                                <div className="p-4 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="auto-pilot-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
+                                            <span className="text-base">🚀</span> Auto-Pilot
+                                        </label>
+                                        <div className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                id="auto-pilot-toggle-menu" 
+                                                className="sr-only peer"
+                                                checked={isAutoMode}
+                                                onChange={handleToggleAutoMode}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-teal-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <label htmlFor="dev-mode-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
-                                        <span className="text-base">🛠️</span> Dev Mode
-                                    </label>
-                                    <div className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            id="dev-mode-toggle-menu" 
-                                            className="sr-only peer"
-                                            checked={isDevMode}
-                                            onChange={() => setIsDevMode(!isDevMode)}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="dev-mode-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
+                                            <span className="text-base">🛠️</span> Dev Mode
+                                        </label>
+                                        <div className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                id="dev-mode-toggle-menu" 
+                                                className="sr-only peer"
+                                                checked={isDevMode}
+                                                onChange={() => setIsDevMode(!isDevMode)}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </header>
 
             <div className="flex flex-row flex-1 overflow-hidden">
-                {/* Left Chat Panel */}
                 <div
                     className={`flex flex-col flex-shrink-0 h-full bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ${isChatOpen ? 'w-[500px]' : 'w-16'}`}
                 >
@@ -476,7 +491,6 @@ export default function App() {
                     )}
                 </div>
 
-                {/* Main Content */}
                 <main className="flex-1 flex flex-col min-w-0 h-full bg-gray-850">
                     <div className="flex-shrink-0 p-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between shadow-md">
                         <div className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
