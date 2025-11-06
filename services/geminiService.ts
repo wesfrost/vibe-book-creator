@@ -10,35 +10,29 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey: apiKey });
 
-// Get the model instance one time, this is a cleaner pattern.
-const model = ai.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
-
 interface GeminiCallParams {
     systemInstruction: string;
     prompt: string;
     responseSchema: Schema;
+    modelId?: string;
     temperature?: number;
 }
 
-export const callGemini = async ({ systemInstruction, prompt, responseSchema, temperature = 0.7 }: GeminiCallParams): Promise<any> => {
+export const callGemini = async ({ systemInstruction, prompt, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 }: GeminiCallParams): Promise<any> => {
     try {
-        // This is the correct payload structure based on your working example.
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            systemInstruction: {
-                parts: [{ text: systemInstruction }]
-            },
-            generationConfig: {
+        // This payload structure matches the known working example.
+        const response = await ai.models.generateContent({
+            model: modelId,
+            contents: prompt,
+            config: {
+                systemInstruction,
                 responseMimeType: "application/json",
-                responseSchema: responseSchema,
+                responseSchema,
                 temperature,
             }
         });
 
-        const response = result.response;
-        let jsonStr = response.text().trim();
-        
+        let jsonStr = response.text.trim();
         if (jsonStr.startsWith("```json")) {
             jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
         }
