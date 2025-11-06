@@ -13,6 +13,12 @@ export const AI_MODELS: AIModel[] = [
         displayName: "Gemini 2.0 Flash",
         description: "The latest, most powerful and reliable model for a wide range of tasks.",
         active: true,
+    },
+    {
+        id: "gemini-2.0-flash-lite",
+        displayName: "Gemini 2.0 Flash Lite",
+        description: "A lighter, faster version for quicker responses.",
+        active: true,
     }
 ];
 
