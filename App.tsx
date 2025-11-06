@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ChatMessage, ProgressPhase, BookState, Option } from './types';
-import { FICTION_PROGRESS } from './config';
+import { FICTION_PROGRESS, BOOK_FORMAT_OPTIONS } from './config'; // Restored BOOK_FORMAT_OPTIONS import
 import { AI_MODELS, DEFAULT_AI_MODEL_ID } from './config/aiModels';
 import { processStep } from './services/orchestrationService';
 import ProgressTracker from './components/ProgressTracker';
@@ -26,17 +26,11 @@ const getUpdatedProgress = (currentProgress: ProgressPhase[], stepName: string):
     return newProgress;
 };
 
-const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView; onClick: (view: MainView) => void; }> = ({ label, view, activeView, onClick }) => {
-    const isActive = activeView === view;
-    return (
-        <button
-            onClick={() => onClick(view)}
-            className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${isActive ? 'bg-teal-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-        >
-            {label}
-        </button>
-    );
-};
+const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView; onClick: (view: MainView) => void; }> = ({ label, view, activeView, onClick }) => (
+    <button onClick={() => onClick(view)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${activeView === view ? 'bg-teal-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
+        {label}
+    </button>
+);
 
 export default function App() {
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
