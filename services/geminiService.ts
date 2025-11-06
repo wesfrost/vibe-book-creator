@@ -28,14 +28,14 @@ export const callGemini = async (params: GeminiCallParams): Promise<any> => {
 
     try {
         // THIS IS THE CORRECT, STABLE PAYLOAD STRUCTURE for JSON output.
-        // system_instruction is now a separate, top-level field.
+        // Properties within generationConfig are now camelCase.
         const response = await ai.models.generateContent({
             model: modelId,
-            system_instruction: { parts: [{ text: systemInstruction }] }, // System instruction as a separate field
-            contents: [{ role: "user", parts: [{ text: prompt }] }],     // Only user prompt in contents
-            generation_config: {
-                response_mime_type: "application/json",
-                response_schema: responseSchema,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { // Corrected to generationConfig (camelCase)
+                responseMimeType: "application/json", // Corrected to responseMimeType (camelCase)
+                responseSchema: responseSchema,      // Corrected to responseSchema (camelCase)
                 temperature,
             }
         });
