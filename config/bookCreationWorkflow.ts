@@ -1,178 +1,216 @@
 
-import { Schema, Type } from "@google/genai";
+import { Type } from '@google/genai';
+import { BOOK_FORMAT_OPTIONS } from './bookFormats';
 
-// --- Schema Definitions for Typed Responses ---
-
-const optionSchema = (itemDescription: string): Schema => ({
+const optionSchema = {
     type: Type.OBJECT,
     properties: {
-        message: { type: Type.STRING, description: "A friendly, conversational message to the user explaining the options." },
         options: {
             type: Type.ARRAY,
-            description: `An array of 3-5 distinct and well-reasoned ${itemDescription}.`,
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    title: { type: Type.STRING, description: "A short, catchy title for the option." },
-                    description: { type: Type.STRING, description: "A detailed, paragraph-long description of the option." },
-                    rationale: { type: Type.STRING, description: "A compelling argument for why this option is a good choice." }
+                    title: { type: Type.STRING, description: 'The option' },
+                    rationale: { type: Type.STRING, description: 'A brief explanation of why this option is a good choice.' }
                 },
-                required: ['title', 'description', 'rationale']
+                required: ['title', 'rationale']
             }
         },
-        bestOption: { type: Type.NUMBER, description: "The 0-indexed number of the option you recommend the most." }
-    },
-    required: ["message", "options", "bestOption"],
-});
-
-const outlineSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        message: { type: Type.STRING, description: "A message to the user presenting the generated chapter outline." },
-        outline: {
-            type: Type.ARRAY,
-            description: "The complete, chapter-by-chapter outline.",
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    chapterTitle: { type: Type.STRING, description: "The title of the chapter." },
-                    chapterDescription: { type: Type.STRING, description: "A detailed paragraph describing the chapter's key events, character arcs, and plot points." }
-                },
-                required: ['chapterTitle', 'chapterDescription']
-            }
-        }
-    },
-    required: ["message", "outline"],
+        bestOption: { type: Type.INTEGER, description: 'The 0-indexed number of the option you recommend the most.' }
+    }
 };
-
-const chapterDraftSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        message: { type: Type.STRING, description: "A message that comes *after* the chapter content, encouraging the user or suggesting next steps." },
-        chapterTitle: { type: Type.STRING, description: "The final title of the drafted chapter." },
-        chapterContent: { type: Type.STRING, description: "The full content of the chapter, written in engaging, professional prose." }
-    },
-    required: ["message", "chapterTitle", "chapterContent"],
-};
-
-const messageSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        message: { type: Type.STRING, description: "A friendly, conversational message to the user." },
-    },
-    required: ["message"],
-};
-
-
-// --- Book Creation Workflow Definition ---
 
 export const bookCreationWorkflow = [
     {
-        id: 'foundation_format',
-        title: "Book Format",
-        phase: "Phase 1: Foundation & Strategy",
+        id: 'select_format',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Book Format Selected',
+        userActions: ['select_option'],
+        userInstruction: "First, let's decide on the format for your book. Each format offers a different reading experience. Review the options and choose the one that best suits your vision.",
+        output: {
+            type: 'options',
+            key: 'format',
+            options: BOOK_FORMAT_OPTIONS.map(o => ({ title: o.title, description: o.description, rationale: '' }))
+        }
+    },
+    {
+        id: 'define_genre',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Genre Defined',
         persona: 'STRATEGIST',
-        prompt: "Your task is to help the author choose a book format. Present a few popular options (like Novel, Novella, Short Story Collection) and explain the pros and cons of each in relation to market trends and reader expectations.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("book formats"), key: 'format' },
+        userActions: ['select_option'],
+        userInstruction: "Great, now let's pick a genre. The genre will set the tone and reader expectations for your book. I've generated a few options based on your chosen format. Which one feels right?",
+        prompt: "Based on the book format, let's define the genre. Generate 3 distinct and compelling genre options, including a rationale for each.",
+        output: {
+            type: 'options',
+            key: 'genre',
+            schema: optionSchema
+        }
     },
     {
-        id: 'foundation_genre',
-        title: "Genre",
-        phase: "Phase 1: Foundation & Strategy",
+        id: 'define_title',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Working Title Defined',
         persona: 'STRATEGIST',
-        prompt: "Based on the chosen format, help the author define their genre. Provide several compelling genre options that are popular and commercially viable. For each, describe the core conventions, target audience, and potential for series development.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("genres"), key: 'genre' },
+        userActions: ['select_option'],
+        userInstruction: "It's time to give your project a name! A good title is catchy and hints at the story within. Here are a few ideas to get us started. Select the one you like best, or we can brainstorm more.",
+        prompt: "Based on the format and genre, let's brainstorm a working title. Generate 3 distinct and compelling title options, including a rationale for each.",
+        output: {
+            type: 'options',
+            key: 'title',
+            schema: optionSchema
+        }
     },
     {
-        id: 'foundation_idea',
-        title: "Core Idea",
-        phase: "Phase 1: Foundation & Strategy",
+        id: 'define_core_idea',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Core Idea Locked In',
         persona: 'STRATEGIST',
-        prompt: "Now, let's brainstorm the core idea or 'logline' of the book. Generate a few high-concept pitches that fit the chosen genre. Each pitch should be a single, powerful sentence that grabs attention and clearly communicates the story's hook.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("core ideas"), key: 'coreIdea' },
+        userActions: ['select_option'],
+        userInstruction: "Let's nail down the central concept of your book. The core idea is the 'what if' that drives your story. I've drafted a few options. Which one resonates with you the most?",
+        prompt: "Now for the core idea. Based on what we have so far, generate 3 one-sentence summaries of the book's central premise. Provide a rationale for each.",
+        output: {
+            type: 'options',
+            key: 'coreIdea',
+            schema: optionSchema
+        }
     },
     {
-        id: 'foundation_vibe',
-        title: "Vibe & Tone",
-        phase: "Phase 1: Foundation & Strategy",
+        id: 'define_vibe',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Vibe Defined',
         persona: 'STRATEGIST',
-        prompt: "Define the book's vibe and tone. Offer a selection of stylistic approaches (e.g., 'Gritty and suspenseful', 'Whimsical and lighthearted', 'Epic and cinematic'). For each, explain how it would influence the reader's experience and prose style.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("vibe and tone options"), key: 'vibe' },
-    },
-     {
-        id: 'foundation_audience',
-        title: "Target Audience",
-        phase: "Phase 1: Foundation & Strategy",
-        persona: 'MARKETER',
-        prompt: "Describe the ideal target audience for this book. Create a few detailed reader personas, including their demographics, reading habits, and what they look for in a story. This will help focus our writing and marketing efforts.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("target audience personas"), key: 'audience' },
+        userActions: ['select_option'],
+        userInstruction: "Now, let's establish the overall mood and feeling of your book. The vibe will influence your writing style and the reader's emotional journey. Pick the vibe that best captures the atmosphere you want to create.",
+        prompt: "Let's set the mood. Based on our concept, generate 3 options for the book's vibe (e.g., 'Dark and gritty', 'Hopeful and optimistic'). Provide a rationale for each.",
+        output: {
+            type: 'options',
+            key: 'vibe',
+            schema: optionSchema
+        }
     },
     {
-        id: 'foundation_title',
-        title: "Working Title",
-        phase: "Phase 1: Foundation & Strategy",
-        persona: 'MARKETER',
-        prompt: "Let's come up with a compelling working title. Generate a list of titles that are memorable, genre-appropriate, and hint at the core conflict. Include a mix of short, punchy titles and more evocative ones.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("working titles"), key: 'title' },
+        id: 'define_audience',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Target Audience Identified',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Knowing your reader is key. Let's think about who this book is for. I've created a few potential audience profiles. Which group are you hoping to connect with?",
+        prompt: "Who is this book for? Generate 3 distinct target audience profiles. Provide a rationale for each.",
+        output: {
+            type: 'options',
+            key: 'audience',
+            schema: optionSchema
+        }
     },
     {
-        id: 'foundation_storyline',
-        title: "Main Storyline",
-        phase: "Phase 1: Foundation & Strategy",
+        id: 'expand_storyline',
+        phase: 'Phase 2: Structure & Character Development',
+        title: 'Main Storyline Solidified',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Time to start building the narrative! A strong storyline is the backbone of any great book. Here are a few potential plot directions. Choose the one that you find most compelling.",
+        prompt: "Let's flesh out the story. Based on our concept, generate three potential storylines. Each should have a clear beginning, middle, and end.",
+        output: {
+            type: 'options',
+            key: 'storyline',
+            schema: optionSchema
+        }
+    },
+    {
+        id: 'develop_characters',
+        phase: 'Phase 2: Structure & Character Development',
+        title: 'Key Characters Defined',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Great stories are about great characters. Let's start developing the people who will inhabit your world. I've sketched out some ideas for your main characters. Which set of characters are you most excited to explore?",
+        prompt: "Let's bring the main characters to life. Create three distinct sets of main characters. For each, describe the protagonist and antagonist.",
+        output: {
+            type: 'options',
+            key: 'characters',
+            schema: optionSchema
+        }
+    },
+    {
+        id: 'create_outline',
+        phase: 'Phase 3: AI-Powered Drafting & Review',
+        title: 'Chapter Outline',
         persona: 'WRITER',
-        prompt: "Flesh out the main storyline. Provide a few variations of a 1-3 paragraph summary of the plot, including the inciting incident, rising action, climax, and resolution. Focus on creating a strong narrative arc.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("storyline summaries"), key: 'storyline' },
-    },
-     {
-        id: 'foundation_characters',
-        title: "Key Characters",
-        phase: "Phase 1: Foundation & Strategy",
-        persona: 'WRITER',
-        prompt: "Develop the key characters. For the protagonist and antagonist, create a few different character concepts. Each concept should include their core motivation, a fatal flaw, a unique strength, and a brief backstory.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("character concepts"), key: 'characters' },
-    },
-    {
-        id: 'outline_chapters',
-        title: "Chapter Outline",
-        phase: "Phase 2: Outlining & Structure",
-        persona: 'WRITER',
-        prompt: "You are a master storyteller. Based on all the book's details, generate a complete, chapter-by-chapter outline. Each chapter in the outline must have a compelling title and a detailed, paragraph-long description of its key events, character arcs, and plot points. The full outline should follow a proven story structure (like the three-act structure) to maximize reader engagement.",
-        userActions: ['approve_outline', 'regenerate_outline', 'request_refinement'],
-        output: { type: 'outline', schema: outlineSchema },
+        userActions: ['request_changes', 'approve_and_continue'],
+        userInstruction: "Here's the chapter-by-chapter outline for your book. This is our roadmap. You can either approve it as is, or request specific changes. Let me know what you think!",
+        prompt: "Let's build the skeleton of our story. Create a detailed, chapter-by-chapter outline. Each entry should summarize key events and character developments.",
+        output: {
+            type: 'outline',
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    globalOutline: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                chapter: { type: Type.INTEGER },
+                                title: { type: Type.STRING },
+                                summary: { type: Type.STRING }
+                            },
+                            required: ['chapter', 'title', 'summary']
+                        }
+                    }
+                }
+            }
+        }
     },
     {
         id: 'draft_chapter',
-        title: "Draft Chapter",
-        phase: "Phase 3: Drafting & Review",
+        phase: 'Phase 3: AI-Powered Drafting & Review',
+        title: 'Draft a Chapter',
         persona: 'WRITER',
-        prompt: "You are a bestselling author. Using the approved outline and all established book details, write the full content for the specified chapter. The prose should be vivid, engaging, and perfectly capture the book's genre and vibe. Make sure the chapter flows well, advances the plot, and stays true to the characters.",
-        userActions: ['approve_draft', 'regenerate_draft', 'request_refinement'],
-        output: { type: 'chapter_draft', schema: chapterDraftSchema },
+        userActions: ['request_changes', 'approve_and_continue'],
+        userInstruction: "The first draft of the chapter is ready! Read it over and see how it feels. You can ask for revisions or, if you're happy with it, we can move on to the next step.",
+        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear storytelling and hitting all key points.",
+        output: {
+            type: 'chapter_draft',
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    chapterNumber: { type: Type.INTEGER },
+                    chapterTitle: { type: Type.STRING },
+                    chapterContent: { type: Type.STRING, description: 'The full text of the chapter in Markdown format.' }
+                }
+            }
+        }
     },
     {
-        id: 'marketing_blurb',
-        title: "Compelling Blurb",
-        phase: "Phase 4: Marketing & Publishing",
-        persona: 'MARKETER',
-        prompt: "It's time to write the book blurb! This is a crucial marketing tool. Craft a few different versions of a compelling, attention-grabbing blurb (150-200 words). It should introduce the main character, hint at the central conflict, and end with a hook that makes readers desperate to know more.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("book blurbs"), key: 'blurb' },
+        id: 'review_chapter',
+        phase: 'Phase 4: Output & Polish',
+        title: 'Final Manuscript Review',
+        persona: 'EDITOR',
+        userActions: ['request_changes', 'approve_and_continue'],
+        userInstruction: "I've gone through the chapter with an editor's eye. Here's the revised version with feedback and suggestions. Let me know if you want more changes or if you're ready to approve it.",
+        prompt: "Let's polish the draft. Review the chapter for clarity, pacing, grammar, and style. Provide specific feedback and suggest concrete improvements.",
+        output: {
+            type: 'chapter_review',
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    editedContent: { type: Type.STRING, description: 'The revised chapter content in Markdown.' },
+                    feedback: { type: 'string', description: 'A summary of the key edits and suggestions for improvement.' }
+                }
+            }
+        }
     },
     {
-        id: 'marketing_keywords',
-        title: "KDP Keywords",
-        phase: "Phase 4: Marketing & Publishing",
+        id: 'generate_marketing_materials',
+        phase: 'Phase 4: Output & Polish',
+        title: 'Revision & Final Polish Complete',
         persona: 'MARKETER',
-        prompt: "Research and select the best KDP (Kindle Direct Publishing) keywords for this book. Provide a list of 7-10 keywords that have high search volume and low competition, maximizing the book's visibility on Amazon. Explain the reasoning behind each keyword choice.",
-        userActions: ['select_option', 'request_refinement'],
-        output: { type: 'options', schema: optionSchema("KDP keyword sets"), key: 'keywords' },
-    },
+        userActions: ['select_option'],
+        userInstruction: "Let's get the word out! I've created some marketing materials to help you promote your book. Choose the option that you think will best capture your target audience's attention.",
+        prompt: "Let's get ready to launch! Generate three options for marketing materials. Each should include a compelling back-cover blurb and a list of relevant keywords.",
+        output: {
+            type: 'options',
+            key: 'marketing',
+            schema: optionSchema
+        }
+    }
 ];

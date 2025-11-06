@@ -1,5 +1,5 @@
 
-import create from 'zustand';
+import { create } from 'zustand';
 import { ChatMessage, ProgressPhase, BookState, Option } from '../types';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 
