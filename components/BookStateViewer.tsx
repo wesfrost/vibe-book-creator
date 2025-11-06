@@ -8,7 +8,25 @@ interface BookStateViewerProps {
 }
 
 const StateItem: React.FC<{ label: string; value: any }> = ({ label, value }) => {
+    // If value is an array of objects, handle it specifically for outlines
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+         return (
+            <div className="border-b border-gray-700 pb-3">
+                <h3 className="font-semibold text-teal-400 mb-2">{label}</h3>
+                <div className="space-y-2">
+                    {value.map((item, index) => (
+                        <div key={index} className="pl-4 border-l-2 border-gray-600">
+                            <h4 className="font-semibold text-gray-200">{item.chapterTitle}</h4>
+                            <p className="text-gray-400 text-sm">{item.chapterDescription}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     if (!value) return null;
+
 
     const renderValue = () => {
         if (Array.isArray(value)) {
@@ -56,15 +74,17 @@ const BookStateViewer: React.FC<BookStateViewerProps> = ({ bookState }) => {
     ];
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+        <div className="p-6 flex flex-col h-full">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3 flex-shrink-0">
                 <span className="text-3xl">📘</span>
                 Live Book Dashboard
             </h2>
-            <div className="space-y-6">
-                {stateEntries.map(({ label, value }) => (
-                    <StateItem key={label} label={label} value={value} />
-                ))}
+            <div className="overflow-y-auto">
+                <div className="space-y-6 max-w-4xl mx-auto">
+                    {stateEntries.map(({ label, value }) => (
+                        <StateItem key={label} label={label} value={value} />
+                    ))}
+                </div>
             </div>
         </div>
     );

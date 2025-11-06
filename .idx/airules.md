@@ -78,3 +78,12 @@ Example (Bad): allow read;
 Example (Good): allow read: if request.auth.uid == resource.data.userId;
 
 Sense Check: You MUST confirm your understanding of any complex architectural request before generating code. Ask clarifying questions about data models, access patterns, and security requirements.
+
+AFTERMATCH: Refinement & Documentation
+After I confirm a feature is working, I will use the prompt "/aftermatch". When you see this command, you will execute the following three steps :   
+
+Refactor: Review the code you just generated and propose minimal refactors for simplicity, performance, and to reduce code.
+
+Modularize: Identify any new code that can be moved to a shared utilities file (e.g., [place for utilities?]).
+
+Document: Update any relevant ARCHITECTURE.md or DESIGN.md files to reflect the changes.

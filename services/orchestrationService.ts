@@ -1,7 +1,10 @@
+
 import { callGemini } from './geminiService';
 import { ORCHESTRATOR_PERSONA } from './personas/orchestrator';
 import { STRATEGIST_PERSONA } from './personas/strategist';
 import { WRITER_PERSONA } from './personas/writer';
+import { EDITOR_PERSONA } from './personas/editor';
+import { MARKETER_PERSONA } from './personas/marketer';
 import { ChatMessage, BookState } from '../types';
 import { Type } from "@google/genai";
 
@@ -21,7 +24,8 @@ const getResponseSchemaForOptions = (itemDescription: string) => ({
                 },
                 required: ['title', 'description', 'rationale']
             }
-        }
+        },
+        bestOption: { type: Type.NUMBER }
     },
     required: ["message", "options"],
 });
@@ -63,8 +67,11 @@ export const processStep = async (
     modelId: string
 ): Promise<any> => {
 
-    const persona = getPersonaForStep(step);
-    const responseSchema = getResponseSchemaForSchemaType(step);
+    const lastUserMessage = history.findLast(m => m.sender === 'user')?.text || '';
+    const isDraftingRequest = lastUserMessage.toLowerCase().includes('draft chapter');
+
+    const persona = getPersonaForStep(step, isDraftingRequest);
+    const responseSchema = getResponseSchemaForSchemaType(step, isDraftingRequest);
     let applyGoldenRule = shouldApplyGoldenRule(step); // Determine if Golden Rule applies
     
     // Construct prompt and explicitly ask for JSON in markdown fences if a schema is present.
@@ -88,15 +95,19 @@ export const processStep = async (
 };
 
 // Helper to determine the persona based on the current step
-const getPersonaForStep = (step: string): string => {
-    if (["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed"].includes(step)) return STRATEGIST_PERSONA;
+const getPersonaForStep = (step: string, isDraftingRequest: boolean): string => {
+    if (isDraftingRequest) return WRITER_PERSONA;
+    if (["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed", "Cover Concept Agreed"].includes(step)) return STRATEGIST_PERSONA;
     if (step === "Chapter Outline" || step.includes("Drafted")) return WRITER_PERSONA;
+    if (["Final Manuscript Review", "Revision & Final Polish Complete"].includes(step)) return EDITOR_PERSONA;
+    if (["KDP Keywords Researched", "Book Categories Selected", "Compelling Blurb Drafted", "Final Title Locked In"].includes(step)) return MARKETER_PERSONA;
     return ORCHESTRATOR_PERSONA; // Default persona
 };
 
 // Helper to determine which schema to use for the response
-const getResponseSchemaForSchemaType = (step: string): any => {
-    if (["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed"].includes(step)) return getResponseSchemaForOptions(step);
+const getResponseSchemaForSchemaType = (step: string, isDraftingRequest: boolean): any => {
+    if (isDraftingRequest) return getResponseSchemaForChapterDraft();
+    if (["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed", "Cover Concept Agreed", "Final Manuscript Review", "Revision & Final Polish Complete", "KDP Keywords Researched", "Book Categories Selected", "Compelling Blurb Drafted", "Final Title Locked In"].includes(step)) return getResponseSchemaForOptions(step);
     if (step === "Chapter Outline") return getResponseSchemaForOutline();
     if (step.includes("Drafted")) return getResponseSchemaForChapterDraft();
     return { type: Type.OBJECT, properties: { message: { type: Type.STRING } }, required: ["message"] }; // Default schema
@@ -104,7 +115,7 @@ const getResponseSchemaForSchemaType = (step: string): any => {
 
 // Helper to apply the Golden Rule based on the step
 const shouldApplyGoldenRule = (step: string): boolean => {
-    return ["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed"].includes(step);
+    return ["Book Format Selected", "Genre Defined", "Working Title Defined", "Core Idea Locked In", "Vibe Defined", "Target Audience Identified", "Main Storyline Solidified", "Key Characters Defined", "Number of Chapters Defined", "Pacing Strategy Agreed", "Cover Concept Agreed", "Final Manuscript Review", "Revision & Final Polish Complete", "KDP Keywords Researched", "Book Categories Selected", "Compelling Blurb Drafted", "Final Title Locked In"].includes(step);
 };
 
 function constructPrompt(history: ChatMessage[], currentStep: string, bookState: BookState, applyGoldenRule: boolean): string {
@@ -122,7 +133,7 @@ The author's current task is: **${currentStep}**.
 ${taskInstruction}
 `;
     if (applyGoldenRule) {
-        const goldenRule = "Your primary goal is to provide actionable, structured 'options' for the user to select. If the user provides feedback, use it to refine and generate a *better* set of options for the same step. Always present the user with choices.";
+        const goldenRule = "Your primary goal is to provide actionable, structured 'options' for the user to select. If the user provides feedback, use it to refine and generate a *better* set of options for the same step. Always present the user with choices. You may also suggest a `bestOption` (the 0-indexed number of the option you recommend the most).";
         basePrompt += `\n\n**Golden Rule:** ${goldenRule}`;
     }
     return basePrompt;

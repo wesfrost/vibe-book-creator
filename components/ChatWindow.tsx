@@ -10,14 +10,18 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMessage }) => {
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Manually scroll the chat window to the bottom
+        // This is more reliable than scrollIntoView and prevents the whole page from scrolling
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
     }, [messages, isLoading]);
 
     return (
-        <div className="flex-1 p-6 overflow-y-auto bg-gray-900">
+        <div ref={chatContainerRef} className="flex-1 p-6 overflow-y-auto bg-gray-900">
             <div className="max-w-4xl mx-auto space-y-6">
                 {messages.map((msg, index) => (
                     <MessageBubble key={`${msg.id}-${index}`} message={msg} onSendMessage={onSendMessage} />
@@ -35,7 +39,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMess
                         </div>
                     </div>
                 )}
-                <div ref={chatEndRef} />
+                {/* The empty div for scrolling to the end is no longer needed */}
             </div>
         </div>
     );

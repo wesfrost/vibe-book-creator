@@ -10,13 +10,13 @@ const ChapterOutline: React.FC<ChapterOutlineProps> = ({ bookState }) => {
     const hasOutline = bookState.globalOutline && bookState.globalOutline.length > 0;
 
     return (
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col min-h-0">
-            <div className="mb-6">
+        <div className="p-6 flex-1 flex flex-col min-h-0 h-full">
+            <div className="mb-6 flex-shrink-0">
                 <h2 className="text-3xl font-bold text-white">Chapter Outline</h2>
                 <p className="text-gray-400 mt-1">This is the proposed structure for your book. Review the chapter titles and descriptions below.</p>
             </div>
 
-            <div className="w-full max-w-4xl mx-auto space-y-4">
+            <div className="w-full max-w-4xl mx-auto space-y-4 overflow-y-auto">
                 {hasOutline ? (
                     bookState.globalOutline.map((item, index) => (
                         <div key={index} className="p-4 border border-gray-700 rounded-lg bg-gray-800/50">

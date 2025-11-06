@@ -49,9 +49,15 @@ export default function App() {
 
     const handleOutlineResponse = React.useCallback((response: any) => {
         setBookState(prev => ({ ...prev, globalOutline: response.outline, chapters: response.outline.map((o: any) => ({ title: o.chapterTitle, content: '', status: 'outlined' })) }));
-        const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message };
+        const optionsForNextStep: Option[] = [ { title: "Approve Outline" }, { title: "Regenerate Outline" }, { title: "Refine..." } ];
+        const jimResponse: ChatMessage = { 
+            id: (Date.now() + 1).toString(), 
+            sender: 'jim', 
+            text: response.message,
+            options: optionsForNextStep // Make options explicit for autopilot
+        };
         setMessages(prev => [...prev, jimResponse]);
-        setDynamicOptions([ { title: "Approve Outline" }, { title: "Regenerate Outline" }, { title: "Refine..." } ]);
+        setDynamicOptions(optionsForNextStep);
         setMainView('outline');
     }, []);
 
@@ -124,7 +130,7 @@ export default function App() {
             } else if (response.chapterContent) {
                 handleChapterDraftResponse(response, nextStepIndex);
             } else {
-                const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [], items: response.items || [] };
+                const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [], items: response.items || [], bestOption: response.bestOption };
                 if (response.options) setDynamicOptions(response.options);
                 setMessages(prev => [...prev, jimResponse]);
             }
@@ -142,7 +148,7 @@ export default function App() {
         const tempProgress = JSON.parse(JSON.stringify(progress));
         const phase3Index = tempProgress.findIndex((p: any) => p.name.includes("Drafting & Review"));
         if (phase3Index !== -1) {
-            tempProgress[phase3Index].steps = chapterSteps;
+            tempProgress[phase3Index].steps.splice(1, 1, ...chapterSteps); // Replace "Chapter Outline"
         }
         setProgress(tempProgress);
         
@@ -151,8 +157,8 @@ export default function App() {
 
         const approvalMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: "Excellent! The outline is locked in. I will now begin drafting Chapter 1." };
         
-        const firstChapterStepIndex = newFlatSteps.findIndex((step: any) => step.step === "Chapter 1 Drafted");
-        setCurrentStepIndex(firstChapterStepIndex);
+        const outlineStepIndex = newFlatSteps.findIndex((step: any) => step.step === "Chapter Outline");
+        setCurrentStepIndex(outlineStepIndex + 1); // Move to the step after outline
 
         setMessages(prev => [...prev, approvalMessage]);
         
@@ -206,7 +212,9 @@ export default function App() {
     React.useEffect(() => {
         const lastMessage = messages[messages.length - 1];
         if (isAutoMode && !isLoading && lastMessage?.sender === 'jim' && lastMessage.options && lastMessage.options.length > 0 && !lastMessage.isProgressUpdate) {
-            setTimeout(() => handleSendMessage(lastMessage.options[0].title, true), 1000);
+            const bestOptionIndex = (typeof lastMessage.bestOption === 'number' && lastMessage.bestOption < lastMessage.options.length) ? lastMessage.bestOption : 0;
+            const selectedOption = lastMessage.options[bestOptionIndex];
+            setTimeout(() => handleSendMessage(selectedOption.title, true), 1000);
         }
     }, [messages, isAutoMode, isLoading, handleSendMessage]);
 
@@ -289,7 +297,7 @@ export default function App() {
                             <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                    <div className="flex-1 p-4 md:p-6 min-h-0">
                         {mainView === 'progress' && <ProgressTracker progress={progress} />}
                         {mainView === 'editor' && <MarkdownEditor bookState={bookState} onContentChange={handleContentChange} exportBook={() => {}} />}
                         {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}

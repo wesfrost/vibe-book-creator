@@ -11,6 +11,20 @@ interface MessageBubbleProps {
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage }) => {
     const isJim = message.sender === 'jim';
 
+    // Helper function to safely extract display text from various message structures
+    const getDisplayText = (msg: ChatMessage): string => {
+        if (typeof msg.text === 'string') {
+            return msg.text;
+        }
+        // Handle the special structure for drafted chapters
+        if (msg.postChapterMessage) {
+            return `${msg.postChapterMessage}\n\n**${msg.chapterTitle}**\n\n${msg.chapterContent}`;
+        }
+        return ''; // Return an empty string if no valid text is found
+    };
+
+    const displayText = getDisplayText(message);
+
     if (message.isAnalysis) {
         return (
              <div className="flex items-start gap-4">
@@ -21,7 +35,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
                      <div className="rounded-lg px-5 py-3 max-w-2xl bg-gray-800 border border-teal-500/30">
                         <h4 className="font-bold text-teal-400 mb-2">Jim's Bestseller Analysis</h4>
                         <div className="prose prose-invert prose-p:my-1 prose-h1:my-2 prose-h2:my-1 text-white text-sm">
-                            {renderMarkdown(message.text)}
+                            {renderMarkdown(displayText)}
                         </div>
                     </div>
                 </div>
@@ -35,7 +49,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
             <div className={`flex flex-col ${isJim ? 'items-start' : 'items-end'}`}>
                  <div className={`relative rounded-lg px-5 py-3 max-w-2xl ${isJim ? 'bg-gray-700' : 'bg-teal-600'}`}>
                     <div className="prose prose-invert prose-p:my-1 prose-h1:my-2 prose-h2:my-1 text-white">
-                        {renderMarkdown(message.text)}
+                        {renderMarkdown(displayText)}
                     </div>
                 </div>
                  {message.isAuto && (
