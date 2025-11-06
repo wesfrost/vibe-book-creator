@@ -67,8 +67,6 @@ export const processStep = async (
     modelId: string
 ): Promise<any> => {
 
-    // Removed mock data logic
-
     const persona = getPersonaForStep(step);
     const responseSchema = getResponseSchemaForSchemaType(step);
     
