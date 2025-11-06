@@ -70,6 +70,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_format',
         title: "Book Format",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'STRATEGIST',
         prompt: "Your task is to help the author choose a book format. Present a few popular options (like Novel, Novella, Short Story Collection) and explain the pros and cons of each in relation to market trends and reader expectations.",
         userActions: ['select_option', 'request_refinement'],
@@ -78,6 +79,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_genre',
         title: "Genre",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'STRATEGIST',
         prompt: "Based on the chosen format, help the author define their genre. Provide several compelling genre options that are popular and commercially viable. For each, describe the core conventions, target audience, and potential for series development.",
         userActions: ['select_option', 'request_refinement'],
@@ -86,6 +88,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_idea',
         title: "Core Idea",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'STRATEGIST',
         prompt: "Now, let's brainstorm the core idea or 'logline' of the book. Generate a few high-concept pitches that fit the chosen genre. Each pitch should be a single, powerful sentence that grabs attention and clearly communicates the story's hook.",
         userActions: ['select_option', 'request_refinement'],
@@ -94,6 +97,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_vibe',
         title: "Vibe & Tone",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'STRATEGIST',
         prompt: "Define the book's vibe and tone. Offer a selection of stylistic approaches (e.g., 'Gritty and suspenseful', 'Whimsical and lighthearted', 'Epic and cinematic'). For each, explain how it would influence the reader's experience and prose style.",
         userActions: ['select_option', 'request_refinement'],
@@ -102,6 +106,7 @@ export const bookCreationWorkflow = [
      {
         id: 'foundation_audience',
         title: "Target Audience",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'MARKETER',
         prompt: "Describe the ideal target audience for this book. Create a few detailed reader personas, including their demographics, reading habits, and what they look for in a story. This will help focus our writing and marketing efforts.",
         userActions: ['select_option', 'request_refinement'],
@@ -110,6 +115,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_title',
         title: "Working Title",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'MARKETER',
         prompt: "Let's come up with a compelling working title. Generate a list of titles that are memorable, genre-appropriate, and hint at the core conflict. Include a mix of short, punchy titles and more evocative ones.",
         userActions: ['select_option', 'request_refinement'],
@@ -118,6 +124,7 @@ export const bookCreationWorkflow = [
     {
         id: 'foundation_storyline',
         title: "Main Storyline",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'WRITER',
         prompt: "Flesh out the main storyline. Provide a few variations of a 1-3 paragraph summary of the plot, including the inciting incident, rising action, climax, and resolution. Focus on creating a strong narrative arc.",
         userActions: ['select_option', 'request_refinement'],
@@ -126,6 +133,7 @@ export const bookCreationWorkflow = [
      {
         id: 'foundation_characters',
         title: "Key Characters",
+        phase: "Phase 1: Foundation & Strategy",
         persona: 'WRITER',
         prompt: "Develop the key characters. For the protagonist and antagonist, create a few different character concepts. Each concept should include their core motivation, a fatal flaw, a unique strength, and a brief backstory.",
         userActions: ['select_option', 'request_refinement'],
@@ -134,6 +142,7 @@ export const bookCreationWorkflow = [
     {
         id: 'outline_chapters',
         title: "Chapter Outline",
+        phase: "Phase 2: Outlining & Structure",
         persona: 'WRITER',
         prompt: "You are a master storyteller. Based on all the book's details, generate a complete, chapter-by-chapter outline. Each chapter in the outline must have a compelling title and a detailed, paragraph-long description of its key events, character arcs, and plot points. The full outline should follow a proven story structure (like the three-act structure) to maximize reader engagement.",
         userActions: ['approve_outline', 'regenerate_outline', 'request_refinement'],
@@ -141,7 +150,8 @@ export const bookCreationWorkflow = [
     },
     {
         id: 'draft_chapter',
-        title: "Draft Chapter", // This is a dynamic step, the title will be updated in the app
+        title: "Draft Chapter",
+        phase: "Phase 3: Drafting & Review",
         persona: 'WRITER',
         prompt: "You are a bestselling author. Using the approved outline and all established book details, write the full content for the specified chapter. The prose should be vivid, engaging, and perfectly capture the book's genre and vibe. Make sure the chapter flows well, advances the plot, and stays true to the characters.",
         userActions: ['approve_draft', 'regenerate_draft', 'request_refinement'],
@@ -150,6 +160,7 @@ export const bookCreationWorkflow = [
     {
         id: 'marketing_blurb',
         title: "Compelling Blurb",
+        phase: "Phase 4: Marketing & Publishing",
         persona: 'MARKETER',
         prompt: "It's time to write the book blurb! This is a crucial marketing tool. Craft a few different versions of a compelling, attention-grabbing blurb (150-200 words). It should introduce the main character, hint at the central conflict, and end with a hook that makes readers desperate to know more.",
         userActions: ['select_option', 'request_refinement'],
@@ -158,6 +169,7 @@ export const bookCreationWorkflow = [
     {
         id: 'marketing_keywords',
         title: "KDP Keywords",
+        phase: "Phase 4: Marketing & Publishing",
         persona: 'MARKETER',
         prompt: "Research and select the best KDP (Kindle Direct Publishing) keywords for this book. Provide a list of 7-10 keywords that have high search volume and low competition, maximizing the book's visibility on Amazon. Explain the reasoning behind each keyword choice.",
         userActions: ['select_option', 'request_refinement'],

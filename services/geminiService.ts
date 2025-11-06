@@ -1,16 +1,22 @@
 
-import { GoogleGenAI, Schema } from "@google/genai";
+import { GoogleGenAI, Schema, Type, ApiError } from "@google/genai";
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
+// Per the new guidelines, the API key is passed directly to the constructor.
+// Vite handles .env files, so this remains the standard way for client-side apps.
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
-
 if (!apiKey) {
-    throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables. Please add it to your .env.local file.");
+    throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables.");
 }
+const ai = new GoogleGenAI({apiKey});
 
-// Correctly instantiate the GoogleGenAI client by passing the API key directly.
-const ai = new GoogleGenAI(apiKey);
 
+// --- New, Bulletproof Return Type ---
+export type GeminiResponse<T> = 
+    | { success: true; data: T }
+    | { success: false; error: string; rawResponse?: string };
+
+// --- Function Parameters ---
 interface GeminiCallParams {
     systemInstruction: string;
     prompt: string;
@@ -19,11 +25,17 @@ interface GeminiCallParams {
     temperature?: number;
 }
 
-export const callGemini = async (params: GeminiCallParams): Promise<any> => {
+/**
+ * A robust, type-safe function for calling the Google Gemini API,
+ * adhering to the latest @google/genai SDK standards.
+ * @param params The parameters for the Gemini API call.
+ * @returns A GeminiResponse object containing either the parsed data or an error message.
+ */
+export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiResponse<T>> => {
     const { systemInstruction, prompt, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 } = params;
 
-    // Use a collapsed group for tidiness
-    console.groupCollapsed(`%c✨ Gemini API Call: ${new Date().toLocaleTimeString()}`, 'color: #34d399; font-weight: bold;');
+    // --- 1. Log the Request for Debugging ---
+    console.groupCollapsed(`%c✨ Gemini API Call (New SDK): ${new Date().toLocaleTimeString()}`, 'color: #34d399; font-weight: bold;');
     console.log('%cModel:', 'color: #a78bfa; font-weight: bold;', modelId);
     console.log('%cPersona:', 'color: #a78bfa; font-weight: bold;', systemInstruction.substring(0, 100) + '...');
     console.log('%cPrompt:', 'color: #a78bfa; font-weight: bold;', prompt);
@@ -31,40 +43,49 @@ export const callGemini = async (params: GeminiCallParams): Promise<any> => {
     console.groupEnd();
 
     try {
-        const model = ai.getGenerativeModel({ 
-            model: modelId, 
-            systemInstruction 
-        });
-
-        const result = await model.generateContent({
+        // --- 2. Make the API Call using the new `ai.models.generateContent` structure ---
+        const response = await ai.models.generateContent({
+            model: modelId,
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
+            config: {
+                systemInstruction: { role: "model", parts: [{ text: systemInstruction }] },
+                temperature: temperature,
                 responseMimeType: "application/json",
                 responseSchema: responseSchema,
-                temperature,
             }
         });
-
-        // In the new SDK, the response is directly available without needing to call .text()
-        const response = result.response;
-        const json = response.text();
-
-        if (!json) {
-             throw new Error("Received an empty response from the API.");
+        
+        const rawResponse = response.text.trim();
+        
+        if (!rawResponse) {
+             return { success: false, error: "Received an empty response from the API." };
         }
-
-        const parsedResponse = JSON.parse(json);
-        console.log('%c✅ Parsed Response:', 'color: #34d399; font-weight: bold;', parsedResponse);
-        return parsedResponse;
+        
+        // --- 3. Parse the JSON (The SDK should now guarantee JSON if schema is used) ---
+        try {
+            const parsedJson = JSON.parse(rawResponse) as T;
+            console.log('%c✅ Parsed Response:', 'color: #34d399; font-weight: bold;', parsedJson);
+            return { success: true, data: parsedJson };
+        } catch (parseError) {
+            console.error('❌ JSON Parsing Error:', parseError);
+            return { 
+                success: false, 
+                error: `Failed to parse JSON from the AI's response, even though a schema was requested. Error: ${parseError.message}`,
+                rawResponse: rawResponse 
+            };
+        }
 
     } catch (error) {
         console.error('❌ Error calling Gemini API:', error);
-        // Return a structured error message for the UI
-        return {
-             message: `Oh dear, my creative circuits seem to have shorted out! I couldn't connect to the AI. Please check the console for more details. (Error: ${error.message})` 
+        if (error instanceof ApiError) {
+             return { 
+                success: false, 
+                error: `The Gemini API call failed with status ${error.status}. Message: ${error.message}` 
+            };
+        }
+        return { 
+            success: false, 
+            error: `An unexpected error occurred. (Error: ${error.message})` 
         };
     }
 };
-
-
-
