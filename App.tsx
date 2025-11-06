@@ -26,11 +26,17 @@ const getUpdatedProgress = (currentProgress: ProgressPhase[], stepName: string):
     return newProgress;
 };
 
-const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView; onClick: (view: MainView) => void; }> = ({ label, view, activeView, onClick }) => (
-    <button onClick={() => onClick(view)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${activeView === view ? 'bg-teal-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
-        {label}
-    </button>
-);
+const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView; onClick: (view: MainView) => void; }> = ({ label, view, activeView, onClick }) => {
+    const isActive = activeView === view;
+    return (
+        <button
+            onClick={() => onClick(view)}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${isActive ? 'bg-teal-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+        >
+            {label}
+        </button>
+    );
+};
 
 export default function App() {
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -68,17 +74,23 @@ export default function App() {
         setMessages(prev => [...prev, jimResponse]);
         setDynamicOptions([ { title: "Looks Great!" }, { title: "Regenerate" }, { title: "Refine..." } ]);
     }, [flatSteps]);
-
+    
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
         if (isLoading) return;
-        
+
         const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text };
         setMessages(prev => [...prev, userMessage]);
         setDynamicOptions(null);
         setIsLoading(true);
 
         const currentHistory = [...messages, userMessage];
-        const currentStepName = flatSteps[currentStepIndex].step;
+        const currentStepName = flatSteps[currentStepIndex]?.step;
+
+        if (text === "Approve Outline") {
+             handleApproveOutline();
+             setIsLoading(false);
+             return;
+        }
 
         if (text.toLowerCase().includes("refine") || text.toLowerCase().includes("regenerate")) {
             const response = await processStep(currentHistory, currentStepName, bookState, selectedModelId);
@@ -88,12 +100,12 @@ export default function App() {
             return;
         }
 
-        const isProgression = isSelection || text === "Looks Great!" || text.includes("let's draft") || text === "Approve Outline";
+        const isProgression = isSelection || text === "Looks Great!" || text.includes("let's draft");
         let nextStepIndex = currentStepIndex;
         let tempBookState = { ...bookState };
 
         if (isProgression) {
-            if(!["Looks Great!", "Approve Outline"].includes(text) && !text.includes("let's draft")) {
+            if (!text.startsWith("Looks great") && !text.includes("let's draft")) {
                 tempBookState = { ...bookState, [currentStepName]: text };
             }
             const updatedProgress = getUpdatedProgress(progress, currentStepName);
@@ -102,8 +114,8 @@ export default function App() {
         }
         
         if (nextStepIndex >= flatSteps.length) {
-            setIsLoading(false);
-            return;
+             setIsLoading(false);
+             return;
         }
 
         const nextTask = flatSteps[nextStepIndex];
@@ -111,11 +123,13 @@ export default function App() {
         
         setBookState(tempBookState);
         setCurrentStepIndex(nextStepIndex);
-
+        
         if (response) {
-            if (response.outline) handleOutlineResponse(response);
-            else if (response.chapterContent) handleChapterDraftResponse(response, nextStepIndex);
-            else {
+            if (response.outline) {
+                handleOutlineResponse(response);
+            } else if (response.chapterContent) {
+                handleChapterDraftResponse(response, nextStepIndex);
+            } else {
                 const jimResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: response.message, options: response.options || [], items: response.items || [] };
                 if (response.options) setDynamicOptions(response.options);
                 setMessages(prev => [...prev, jimResponse]);
@@ -124,7 +138,6 @@ export default function App() {
             const errorResponse: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: "Sorry, I seem to be having trouble connecting. Let's try that again." };
             setMessages(prev => [...prev, errorResponse]);
         }
-        
         setIsLoading(false);
     }, [isLoading, messages, flatSteps, currentStepIndex, bookState, progress, selectedModelId, handleOutlineResponse, handleChapterDraftResponse]);
 
@@ -132,19 +145,19 @@ export default function App() {
         const chapterCount = bookState.chapters.length;
         const chapterSteps = Array.from({ length: chapterCount }, (_, i) => ({ name: `Chapter ${i + 1} Drafted`, completed: false }));
         
-        const tempProgress = [...progress];
-        const phase3Index = tempProgress.findIndex(p => p.name.includes("Drafting & Review"));
+        const tempProgress = JSON.parse(JSON.stringify(progress));
+        const phase3Index = tempProgress.findIndex((p: any) => p.name.includes("Drafting & Review"));
         if (phase3Index !== -1) {
             tempProgress[phase3Index].steps = chapterSteps;
         }
         setProgress(tempProgress);
         
-        const newFlatSteps = tempProgress.flatMap(phase => phase.steps.map(step => ({ phase: phase.name, step: step.name })));
+        const newFlatSteps = tempProgress.flatMap((phase: any) => phase.steps.map((step: any) => ({ phase: phase.name, step: step.name })));
         setFlatSteps(newFlatSteps);
 
         const approvalMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'jim', text: "Excellent! The outline is locked in. I will now begin drafting Chapter 1." };
         
-        const firstChapterStepIndex = newFlatSteps.findIndex(step => step.step === "Chapter 1 Drafted");
+        const firstChapterStepIndex = newFlatSteps.findIndex((step: any) => step.step === "Chapter 1 Drafted");
         setCurrentStepIndex(firstChapterStepIndex);
 
         setMessages(prev => [...prev, approvalMessage]);
@@ -152,16 +165,16 @@ export default function App() {
         setTimeout(() => {
             handleSendMessage(`Draft Chapter 1`, false);
         }, 100);
-    }, [bookState.chapters, progress, handleSendMessage]);
+    }, [bookState.chapters.length, progress, handleSendMessage]);
 
-    const handleContentChange = (chapterIndex: number, newContent: string) => {
+    const handleContentChange = React.useCallback((chapterIndex: number, newContent: string) => {
         setBookState(prev => {
             const newChapters = [...prev.chapters];
             if(newChapters[chapterIndex]) newChapters[chapterIndex].content = newContent;
             return {...prev, chapters: newChapters};
         });
-    };
-
+    }, []);
+    
     const handleToggleAutoMode = React.useCallback(() => {
         const newAutoModeState = !isAutoMode;
         setIsAutoMode(newAutoModeState);
@@ -189,7 +202,7 @@ export default function App() {
         const secondMessage: ChatMessage = {
             id: 'jim-first-step', sender: 'jim',
             text: `Ready to lay the foundation? Let's start with **Phase 1, Step 1: Choosing your Book Format.**`,
-            options: [{title: 'Novel'}, {title: 'Novella'}, {title: 'Flash Fiction / Vignette'}],
+            options: BOOK_FORMAT_OPTIONS.slice(0, 3),
         };
         setMessages([firstMessage, secondMessage]);
         const initialFlatSteps = FICTION_PROGRESS.flatMap(phase => phase.steps.map(step => ({ phase: phase.name, step: step.name })));
@@ -199,15 +212,98 @@ export default function App() {
     React.useEffect(() => {
         const lastMessage = messages[messages.length - 1];
         if (isAutoMode && !isLoading && lastMessage?.sender === 'jim' && lastMessage.options && lastMessage.options.length > 0 && !lastMessage.isProgressUpdate) {
-            setTimeout(() => handleSendMessage(lastMessage.options[0].title, true), 500);
+            setTimeout(() => handleSendMessage(lastMessage.options[0].title, true), 1000);
         }
     }, [messages, isAutoMode, isLoading, handleSendMessage]);
-    
+
     const lastMessage = messages[messages.length - 1];
 
     return (
-        <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
-            {/* The full, correct JSX for the header, chat panel, and main views is restored here */}
+        <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
+
+            {/* Header */}
+            <header className="flex-shrink-0 flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800 shadow-sm">
+                <div className="flex items-center">
+                    <h1 className="text-lg font-semibold text-white ml-2">Vibe Book Creator</h1>
+                </div>
+                <div className="flex items-center">
+                    <div className="relative ml-2" ref={headerMenuRef}>
+                        <button onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)} className="p-2 rounded-full text-gray-400 hover:bg-gray-700 transition-colors" aria-label="More options">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                        </button>
+                        {isHeaderMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
+                                <div className="p-4 space-y-4">
+                                     <div className="space-y-2">
+                                        <label htmlFor="ai-model-select" className="font-medium text-gray-200 flex items-center gap-2">
+                                            <span className="text-base">🧠</span> AI Model
+                                        </label>
+                                        <select id="ai-model-select" value={selectedModelId} onChange={(e) => setSelectedModelId(e.target.value)} className="w-full p-2 bg-gray-600 rounded-md text-white border border-gray-500 focus:ring-2 focus:ring-teal-400">
+                                            {AI_MODELS.filter(model => model.active).map(model => (<option key={model.id} value={model.id}>{model.displayName}</option>))}
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="auto-pilot-toggle-menu" className="font-medium text-gray-200 flex items-center gap-2 cursor-pointer">
+                                            <span className="text-base">🚀</span> Auto-Pilot
+                                        </label>
+                                        <div className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="auto-pilot-toggle-menu" className="sr-only peer" checked={isAutoMode} onChange={handleToggleAutoMode} />
+                                            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-teal-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content Area */}
+            <div className="flex flex-row flex-1 overflow-hidden">
+
+                {/* AI Assistant Panel */}
+                <div className={`flex flex-col flex-shrink-0 h-full bg-gray-800 border-r border-gray-700 shadow-lg transition-all duration-300 ${isChatOpen ? 'w-[500px]' : 'w-16'}`}>
+                    {isChatOpen ? (
+                        <div className="relative flex flex-col flex-1 min-w-0 min-h-0">
+                            <div className="flex-shrink-0 p-4 border-b border-gray-700 flex justify-between items-center">
+                                <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
+                                <button onClick={() => setIsChatOpen(false)} className="p-1 rounded-full text-gray-400 hover:bg-gray-600 transition-colors" title="Collapse chat">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                            </div>
+                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={(text) => handleSendMessage(text, false)} />
+                             <div className="p-4 border-t border-gray-700 flex items-center gap-2">
+                                <ComboBox options={dynamicOptions || lastMessage?.options || []} onSendMessage={(text) => handleSendMessage(text, true)} isLoading={isLoading} />
+                            </div>
+                        </div>
+                    ) : (
+                         <div className="flex flex-col items-center pt-4">
+                            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Expand chat">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.252-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Main View Area */}
+                <main className="flex-1 flex flex-col min-w-0 h-full bg-gray-850">
+                    <div className="flex-shrink-0 p-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between shadow-md">
+                        <div className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
+                            <ViewToggle label="Dashboard" view="dashboard" activeView={mainView} onClick={setMainView} />
+                            <ViewToggle label="Outline" view="outline" activeView={mainView} onClick={setMainView} />
+                            <ViewToggle label="Editor" view="editor" activeView={mainView} onClick={setMainView} />
+                            <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                        {mainView === 'progress' && <ProgressTracker progress={progress} />}
+                        {mainView === 'editor' && <MarkdownEditor bookState={bookState} onContentChange={handleContentChange} exportBook={() => {}} />}
+                        {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}
+                        {mainView === 'outline' && <ChapterOutline bookState={bookState} />}
+                    </div>
+                </main>
+
+            </div>
         </div>
     );
 }
