@@ -27,10 +27,12 @@ export const callGemini = async (params: GeminiCallParams): Promise<any> => {
     console.log('%cExpected Schema:', 'color: #a78bfa; font-weight: bold;', responseSchema);
 
     try {
-        // THIS IS THE CORRECT, STABLE PAYLOAD STRUCTURE
+        // THIS IS THE CORRECT, STABLE PAYLOAD STRUCTURE for JSON output.
+        // system_instruction is now a separate, top-level field.
         const response = await ai.models.generateContent({
             model: modelId,
-            contents: `system: ${systemInstruction}\nuser: ${prompt}`,
+            system_instruction: { parts: [{ text: systemInstruction }] }, // System instruction as a separate field
+            contents: [{ role: "user", parts: [{ text: prompt }] }],     // Only user prompt in contents
             generation_config: {
                 response_mime_type: "application/json",
                 response_schema: responseSchema,
