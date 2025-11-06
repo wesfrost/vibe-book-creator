@@ -2,13 +2,14 @@
 import { GoogleGenAI, Schema } from "@google/genai";
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
 
 if (!apiKey) {
-    throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables.");
+    throw new Error("VITE_GEMINI_API_KEY is not set in your environment variables. Please add it to your .env.local file.");
 }
 
-const ai = new GoogleGenAI({ apiKey: apiKey });
+// Correctly instantiate the GoogleGenAI client by passing the API key directly.
+const ai = new GoogleGenAI(apiKey);
 
 interface GeminiCallParams {
     systemInstruction: string;
@@ -21,40 +22,49 @@ interface GeminiCallParams {
 export const callGemini = async (params: GeminiCallParams): Promise<any> => {
     const { systemInstruction, prompt, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 } = params;
 
+    // Use a collapsed group for tidiness
     console.groupCollapsed(`%c✨ Gemini API Call: ${new Date().toLocaleTimeString()}`, 'color: #34d399; font-weight: bold;');
-    console.log('%cPersona:', 'color: #a78bfa; font-weight: bold;', systemInstruction);
+    console.log('%cModel:', 'color: #a78bfa; font-weight: bold;', modelId);
+    console.log('%cPersona:', 'color: #a78bfa; font-weight: bold;', systemInstruction.substring(0, 100) + '...');
     console.log('%cPrompt:', 'color: #a78bfa; font-weight: bold;', prompt);
     console.log('%cExpected Schema:', 'color: #a78bfa; font-weight: bold;', responseSchema);
+    console.groupEnd();
 
     try {
-        // THIS IS THE CORRECT, STABLE PAYLOAD STRUCTURE for JSON output.
-        // Properties within generationConfig are now camelCase.
-        const response = await ai.models.generateContent({
-            model: modelId,
+        const model = ai.getGenerativeModel({ 
+            model: modelId, 
+            systemInstruction 
+        });
+
+        const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            config: { // Corrected to generationConfig (camelCase)
-                responseMimeType: "application/json", // Corrected to responseMimeType (camelCase)
-                responseSchema: responseSchema,      // Corrected to responseSchema (camelCase)
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema,
                 temperature,
             }
         });
 
-        const jsonStr = response.text.trim();
-        
-        try {
-            const parsedResponse = JSON.parse(jsonStr);
-            console.log('%c✅ Raw Response:', 'color: #34d399; font-weight: bold;', parsedResponse);
-            console.groupEnd();
-            return parsedResponse;
-        } catch (error) {
-            console.error('❌ Failed to parse Gemini response as JSON:', jsonStr);
-            console.groupEnd();
-            return { message: "The AI returned an unexpected response. Let's try that again! 🧠⚡️" };
+        // In the new SDK, the response is directly available without needing to call .text()
+        const response = result.response;
+        const json = response.text();
+
+        if (!json) {
+             throw new Error("Received an empty response from the API.");
         }
+
+        const parsedResponse = JSON.parse(json);
+        console.log('%c✅ Parsed Response:', 'color: #34d399; font-weight: bold;', parsedResponse);
+        return parsedResponse;
 
     } catch (error) {
         console.error('❌ Error calling Gemini API:', error);
-        console.groupEnd();
-        return { message: "Oh, my dear author, it seems my typewriter is jammed! Let's try that again. 🛠️" };
+        // Return a structured error message for the UI
+        return {
+             message: `Oh dear, my creative circuits seem to have shorted out! I couldn't connect to the AI. Please check the console for more details. (Error: ${error.message})` 
+        };
     }
 };
+
+
+
