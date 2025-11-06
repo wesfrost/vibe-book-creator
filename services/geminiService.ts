@@ -20,7 +20,7 @@ interface GeminiCallParams {
 
 export const callGemini = async ({ systemInstruction, prompt, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 }: GeminiCallParams): Promise<any> => {
     try {
-        // THIS IS THE CORRECT, WORKING PAYLOAD STRUCTURE
+        // This is the correct, working payload structure that forces a JSON response.
         const response = await ai.models.generateContent({
             model: modelId,
             contents: prompt,

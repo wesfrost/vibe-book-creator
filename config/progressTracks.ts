@@ -19,20 +19,19 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
             { name: 'Main Storyline Solidified', completed: false },
             { name: 'Key Characters Defined', completed: false },
             { name: 'Number of Chapters Defined', completed: false },
-            { name: 'Pacing Strategy Agreed', completed: false },
         ]
     },
     {
         name: 'Phase 3: AI-Powered Drafting & Review',
         steps: [
-            { name: 'Outline Approved', completed: false },
-            // Chapter drafting steps will be dynamically added here
+            { name: 'Pacing Strategy Agreed', completed: false },
+            { name: 'Chapter Outline', completed: false },
+            // Chapter drafting steps will be dynamically inserted here by App.tsx
         ]
     },
     {
         name: 'Phase 4: Output & Polish',
         steps: [
-            { name: 'Full Book Compiled', completed: false },
             { name: 'Final Manuscript Review', completed: false },
             { name: 'Revision & Final Polish Complete', completed: false },
         ]
@@ -54,8 +53,6 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
     }
 ];
 
-// ... (other progress tracks like HOW_TO_PROGRESS, MEMOIR_PROGRESS remain the same for now)
 export const HOW_TO_PROGRESS: ProgressPhase[] = FICTION_PROGRESS;
 export const MEMOIR_PROGRESS: ProgressPhase[] = FICTION_PROGRESS;
 export const FLASH_FICTION_PROGRESS: ProgressPhase[] = FICTION_PROGRESS;
-
