@@ -31,9 +31,8 @@ export const callGemini = async (params: GeminiCallParams): Promise<any> => {
         // Properties within generationConfig are now camelCase.
         const response = await ai.models.generateContent({
             model: modelId,
-            systemInstruction: { parts: [{ text: systemInstruction }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { // Corrected to generationConfig (camelCase)
+            config: { // Corrected to generationConfig (camelCase)
                 responseMimeType: "application/json", // Corrected to responseMimeType (camelCase)
                 responseSchema: responseSchema,      // Corrected to responseSchema (camelCase)
                 temperature,
