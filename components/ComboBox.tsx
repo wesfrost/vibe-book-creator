@@ -5,9 +5,10 @@ interface ComboBoxProps {
     options: { title: string; description?: string; rationale?: string }[];
     onSendMessage: (text: string, isRerun?: boolean) => void;
     isLoading: boolean;
+    header?: string;
 }
 
-const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendMessage, isLoading }) => {
+const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendMessage, isLoading, header }) => {
     const [inputValue, setInputValue] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +45,7 @@ const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendMessage, isLoading }
         <div className="relative w-full" ref={containerRef}>
             {isOpen && hasOptions && (
                 <div className="absolute bottom-full mb-2 w-full rounded-md bg-gray-800 shadow-lg z-20 border border-gray-700">
+                    {header && <div className="py-2 px-3 text-sm font-semibold text-white border-b border-gray-700">{header}</div>}
                     <ul className="max-h-72 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
                         {options.map((option, index) => (
                             <li
@@ -54,17 +56,10 @@ const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendMessage, isLoading }
                                 {option.rationale && <span className="text-teal-400 text-lg mt-0.5">✨</span>}
                                 <div>
                                     <p className="font-semibold text-white">{option.title}</p>
-                                    <p className="text-xs text-gray-400">{option.description}</p>
+                                    <p className="text-xs text-gray-400">{option.description || option.rationale}</p>
                                 </div>
                             </li>
                         ))}
-                         <li
-                            onClick={() => handleSelect('Give me more options', true)}
-                            className="text-teal-300 cursor-pointer select-none relative p-3 hover:bg-teal-600 hover:text-white flex items-center justify-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                            More Suggestions
-                        </li>
                     </ul>
                 </div>
             )}

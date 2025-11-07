@@ -22,4 +22,4 @@ export const AI_MODELS: AIModel[] = [
     }
 ];
 
-export const DEFAULT_AI_MODEL_ID: string = "gemini-2.0-flash";
+export const DEFAULT_AI_MODEL_ID: string = "gemini-2.0-flash-lite";

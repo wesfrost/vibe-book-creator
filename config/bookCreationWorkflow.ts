@@ -40,7 +40,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Great, now let's pick a genre. The genre will set the tone and reader expectations for your book. I've generated a few options based on your chosen format. Which one feels right?",
-        prompt: "Based on the book format, let's define the genre. Generate 3 distinct and compelling genre options, including a rationale for each.",
+        prompt: "Based on the book format, research curent trends and see what genres are at the top of the ebook selling charts. Generate 5 distinct and compelling genre options based on the research, including a rationale for each.",
         output: {
             type: 'options',
             key: 'genre',
@@ -54,7 +54,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "It's time to give your project a name! A good title is catchy and hints at the story within. Here are a few ideas to get us started. Select the one you like best, or we can brainstorm more.",
-        prompt: "Based on the format and genre, let's brainstorm a working title. Generate 3 distinct and compelling title options, including a rationale for each.",
+        prompt: "Based on the format, genre, and current trends in ebooks let's brainstorm a working title. Generate 3 distinct and compelling working title options, including a rationale for each.",
         output: {
             type: 'options',
             key: 'title',
@@ -68,7 +68,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Let's nail down the central concept of your book. The core idea is the 'what if' that drives your story. I've drafted a few options. Which one resonates with you the most?",
-        prompt: "Now for the core idea. Based on what we have so far, generate 3 one-sentence summaries of the book's central premise. Provide a rationale for each.",
+        prompt: "Based on the format, genre, and current trends in ebooks let's generate 5 distinct and compelling one-sentence ideas for the book's central premise. Provide a rationale for each.",
         output: {
             type: 'options',
             key: 'coreIdea',
@@ -82,7 +82,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Now, let's establish the overall mood and feeling of your book. The vibe will influence your writing style and the reader's emotional journey. Pick the vibe that best captures the atmosphere you want to create.",
-        prompt: "Let's set the mood. Based on our concept, generate 3 options for the book's vibe (e.g., 'Dark and gritty', 'Hopeful and optimistic'). Provide a rationale for each.",
+        prompt: "Based on the format, genre, core idea, and current trends in ebooks generate 5 distinct and compelling options for the mood and feeling (e.g., 'Dark and gritty', 'Hopeful and optimistic'). Provide a rationale for each.",
         output: {
             type: 'options',
             key: 'vibe',
@@ -96,7 +96,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Knowing your reader is key. Let's think about who this book is for. I've created a few potential audience profiles. Which group are you hoping to connect with?",
-        prompt: "Who is this book for? Generate 3 distinct target audience profiles. Provide a rationale for each.",
+        prompt: "Based on the format, genre, core idea, vibe and current trends in ebooks generate 5 distinct and compelling target audience profiles. Provide a rationale for each.",
         output: {
             type: 'options',
             key: 'audience',

@@ -146,6 +146,7 @@ export default function App() {
     }, [bookState, setBookState]);
     
     const lastMessage = messages[messages.length - 1];
+    const currentStep = getCurrentStep();
 
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
@@ -184,7 +185,12 @@ export default function App() {
                             </div>
                             <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={(text) => handleSendMessage(text, false)} />
                             <div className="p-4 border-t border-gray-700 flex items-center gap-2">
-                                <ComboBox options={dynamicOptions || lastMessage?.options || []} onSendMessage={(text) => handleSendMessage(text, true)} isLoading={isLoading} />
+                                <ComboBox 
+                                    header={currentStep.title}
+                                    options={dynamicOptions || lastMessage?.options || []} 
+                                    onSendMessage={(text) => handleSendMessage(text, true)} 
+                                    isLoading={isLoading} 
+                                />
                             </div>
                         </div>
                     ) : (
