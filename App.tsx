@@ -57,6 +57,9 @@ export default function App() {
             case 'chapter_draft':
                 handleChapterDraftResponse(response);
                 break;
+            case 'chapter_review':
+                handleChapterReviewResponse(response);
+                break;
             case 'options':
                 handleGenericResponse(response);
                 break;
@@ -135,6 +138,25 @@ export default function App() {
         handleGenericResponse({}, stepConfig?.userInstruction);
         setMainView('editor');
     }, [bookState, setBookState, getCurrentStep, addMessage]);
+
+    const handleChapterReviewResponse = React.useCallback((responseData: any) => {
+        const chapterIndex = bookState.draftingChapterIndex;
+        if (chapterIndex === undefined) return;
+
+        const newChapters = [...bookState.chapters];
+        newChapters[chapterIndex] = { 
+            ...newChapters[chapterIndex], 
+            content: responseData.editedContent, 
+            status: 'reviewed' 
+        };
+        
+        const newBookState: BookState = { ...bookState, chapters: newChapters };
+        setBookState(newBookState);
+        
+        // Use the feedback from the AI in the chat message
+        handleGenericResponse({}, responseData.feedback);
+        setMainView('editor');
+    }, [bookState, setBookState]);
 
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
         if (isLoading || !chatSession) return;

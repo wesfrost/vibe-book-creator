@@ -58,7 +58,7 @@ export const processUserMessage = async (
         const masterContext = buildMasterContext(bookState, stepId);
         const fullPrompt = `${masterContext}\n\n# USER MESSAGE\n${userInput}`;
         
-        const result = await chatSession.sendMessage({ message: fullPrompt });
+        const result = await chatSession.sendMessage(fullPrompt);
         
         if (!result.response) {
             return { success: false, error: "The AI did not provide a response. This might be due to safety filters or other issues." };
