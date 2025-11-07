@@ -1,20 +1,25 @@
 
+export interface Option {
+    title: string;
+    description?: string;
+    rationale?: string;
+}
+
 export interface ChatMessage {
     id: string;
     sender: 'user' | 'jim';
     text: string;
     options?: Option[];
     bestOption?: number;
-}
-
-export interface Option {
-    title: string;
-    description: string;
-    rationale: string;
+    isAnalysis?: boolean;
+    isAuto?: boolean;
+    postChapterMessage?: string;
+    chapterTitle?: string;
+    chapterContent?: string;
 }
 
 export interface ProgressStep {
-    id: string;
+    id?: string;
     name: string;
     completed: boolean;
 }
@@ -26,6 +31,7 @@ export interface ProgressPhase {
 
 export interface Chapter {
     title: string;
+    summary?: string; 
     content: string;
     status: 'outlined' | 'drafted' | 'reviewed';
 }
@@ -33,14 +39,17 @@ export interface Chapter {
 export interface BookState {
     format?: string;
     genre?: string;
+    title?: string;
     coreIdea?: string;
     vibe?: string;
     audience?: string;
-    title?: string;
     storyline?: string;
-    characters?: string;
-    blurb?: string;
-    keywords?: string;
-    globalOutline?: any[]; // Consider defining a more specific type
+    storylineRationale?: string;
+    characters?: any;
+    charactersRationale?: string; // Add characters rationale
+    globalOutline?: any[];
     chapters: Chapter[];
+    marketing?: any;
+    draftingChapterIndex?: number;
+    minimizedBookSpec?: any; 
 }

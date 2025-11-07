@@ -1,5 +1,5 @@
 
-import { callGemini, GeminiResponse } from './geminiService';
+import { callGemini, GeminiResponse, GeminiCallParams } from './geminiService';
 import * as Personas from './personas';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 import { ChatMessage, BookState } from '../types';
@@ -22,7 +22,6 @@ export const processStep = async (
     modelId: string
 ): Promise<GeminiResponse<any>> => {
 
-    // 1. Find the current step in our workflow
     const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
 
     if (!stepConfig) {
@@ -31,18 +30,20 @@ export const processStep = async (
         return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
     }
 
-    // 2. Get the persona, prompt, and response schema from the workflow config
-    const personaText = personaMap[stepConfig.persona];
+    const personaText = personaMap[stepConfig.persona || 'ORCHESTRATOR'];
     const responseSchema = stepConfig.output.schema;
     
-    // 3. Construct the prompt
+    // Determine which book state to use
+    const bookStateForPrompt = bookState.minimizedBookSpec || bookState;
+
+    // Construct the prompt
     const historyString = history.slice(-5).map(m => `${m.sender}: ${m.text}`).join('\n');
     let prompt = `
 Here is the recent conversation history:
 ${historyString}
 
 Here is the current state of the book we are writing:
-${JSON.stringify(bookState, null, 2)}
+${JSON.stringify(bookStateForPrompt, null, 2)}
 
 The author's current task is: **${stepConfig.title}**
 
@@ -50,8 +51,15 @@ The author's current task is: **${stepConfig.title}**
 ${stepConfig.prompt}
 `;
 
+    if (stepId === 'draft_chapter' && bookState.draftingChapterIndex !== undefined) {
+        const chapterToDraft = bookState.chapters[bookState.draftingChapterIndex];
+        if (chapterToDraft) {
+            prompt += `\n\n**Specifically, you are to draft Chapter ${bookState.draftingChapterIndex + 1}: ${chapterToDraft.title}**`;
+        }
+    }
+
     if (stepConfig.userActions.includes('select_option')) {
-        const goldenRule = "Your primary goal is to provide actionable, structured 'options' for the user to select. If the user provides feedback, use it to refine and generate a *better* set of options for the same step. Always present the user with choices. You may also suggest a `bestOption` (the 0-indexed number of the option you recommend the most).";
+        const goldenRule = "Your primary goal is to provide researched, best selling, actionable, structured 'options' for the user to select. If the user provides feedback, use it to refine and generate a *better* set of options for the same step. Always present the user with choices. You may also suggest a `bestOption` (the 0-indexed number of the option you recommend the most).";
         prompt += `\n\n**Golden Rule:** ${goldenRule}`;
     }
 
@@ -59,11 +67,15 @@ ${stepConfig.prompt}
         prompt += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
 
-    // 4. Call the Gemini API with the correctly formatted system instruction
-    return await callGemini({
-        systemInstruction: personaText, // Pass the persona string directly
+    const geminiParams: GeminiCallParams = {
+        systemInstruction: personaText,
         prompt,
-        responseSchema: responseSchema,
-        modelId
-    });
+        modelId,
+    };
+
+    if (responseSchema) {
+        geminiParams.responseSchema = responseSchema;
+    }
+
+    return await callGemini(geminiParams);
 };

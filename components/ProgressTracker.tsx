@@ -1,12 +1,13 @@
 
 import React from 'react';
-import { ProgressPhase } from '../types';
+import { ProgressPhase, BookState } from '../types';
 
 interface ProgressTrackerProps {
     progress: ProgressPhase[];
+    bookState: BookState;
 }
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progress }) => {
+const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progress, bookState }) => {
     return (
         <div className="p-6 h-full flex flex-col">
             <h2 className="text-2xl font-bold text-teal-400 mb-6 flex-shrink-0">🚀 Book Progress</h2>
@@ -16,12 +17,23 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progress }) => {
                         <div key={phaseIndex}>
                             <h3 className="font-semibold text-lg mb-2 text-gray-300">{phase.name}</h3>
                             <ul className="space-y-2">
-                                {phase.steps.map((step, stepIndex) => (
-                                    <li key={stepIndex} className={`flex items-center transition-all duration-300 ${step.completed ? 'text-green-400' : 'text-gray-400'}`}>
-                                        <span className="mr-3 text-lg">{step.completed ? '✅' : '⬜'}</span>
-                                        <span className={step.completed ? 'line-through' : ''}>{step.name}</span>
-                                    </li>
-                                ))}
+                                {phase.steps.map((step, stepIndex) => {
+                                    if (step.id === 'draft_chapter') {
+                                        return bookState.chapters.map((chapter, chapterIndex) => (
+                                            <li key={`chapter-${chapterIndex}`} className={`flex items-center transition-all duration-300 ${chapter.status === 'drafted' ? 'text-green-400' : 'text-gray-400'}`}>
+                                                <span className="mr-3 text-lg">{chapter.status === 'drafted' ? '✅' : '⬜'}</span>
+                                                <span className={chapter.status === 'drafted' ? 'line-through' : ''}>Draft: {chapter.title}</span>
+                                            </li>
+                                        ));
+                                    } else {
+                                        return (
+                                            <li key={stepIndex} className={`flex items-center transition-all duration-300 ${step.completed ? 'text-green-400' : 'text-gray-400'}`}>
+                                                <span className="mr-3 text-lg">{step.completed ? '✅' : '⬜'}</span>
+                                                <span className={step.completed ? 'line-through' : ''}>{step.name}</span>
+                                            </li>
+                                        );
+                                    }
+                                })}
                             </ul>
                         </div>
                     ))}

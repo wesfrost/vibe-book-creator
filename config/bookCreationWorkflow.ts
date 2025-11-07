@@ -124,7 +124,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Great stories are about great characters. Let's start developing the people who will inhabit your world. I've sketched out some ideas for your main characters. Which set of characters are you most excited to explore?",
-        prompt: "Readers connect with unforgettable characters. Based on our storyline, create three distinct sets of main characters. For each set, describe a protagonist that readers will root for and an antagonist that provides a compelling conflict. Analyze character archetypes common in bestselling books within our genre and explain how these characters fit or subvert those expectations.",
+        prompt: "Readers connect with unforgettable characters. Based on our storyline, create three distinct sets of main characters. For each set, provide a 'title' that summarizes the character dynamic (e.g., 'The Reluctant Hero and the Power-Hungry Sorcerer'). In the 'rationale', provide a compelling, one-paragraph description covering both the protagonist and the antagonist, highlighting their core motivations and the central conflict between them. This description is crucial and should give a real sense of who these characters are.",
         output: {
             type: 'options',
             key: 'characters',
@@ -167,7 +167,7 @@ export const bookCreationWorkflow = [
         persona: 'WRITER',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "The first draft of the chapter is ready! Read it over and see how it feels. You can ask for revisions or, if you're happy with it, we can move on to the next step.",
-        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear, compelling prose that's easy to read. Use techniques common in bestselling novels like cliffhangers, strong hooks, and vivid descriptions to keep the reader engaged.",
+        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear, compelling prose that's easy to read. Use techniques common in bestselling novels like cliffhangers, strong hooks, and vivid descriptions to keep the reader engaged. Your JSON response must include the 'chapterNumber'.",
         output: {
             type: 'chapter_draft',
             schema: {
@@ -176,7 +176,8 @@ export const bookCreationWorkflow = [
                     chapterNumber: { type: Type.INTEGER },
                     chapterTitle: { type: Type.STRING },
                     chapterContent: { type: Type.STRING, description: 'The full text of the chapter in Markdown format.' }
-                }
+                },
+                required: ['chapterNumber', 'chapterTitle', 'chapterContent']
             }
         }
     },

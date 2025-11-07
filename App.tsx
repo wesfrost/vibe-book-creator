@@ -10,15 +10,10 @@ import BookStateViewer from './components/BookStateViewer';
 import ChapterOutline from './components/ChapterOutline';
 import ComboBox from './components/ComboBox';
 import { useBookStore } from './store/useBookStore';
-import { ChatMessage, Option } from './types';
+import { ChatMessage, Option, BookState } from './types';
+import ViewToggle from './components/ViewToggle';
 
 type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
-
-const ViewToggle: React.FC<{ label: string; view: MainView; activeView: MainView; onClick: (view: MainView) => void; }> = ({ label, view, activeView, onClick }) => (
-    <button onClick={() => onClick(view)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors duration-200 ${activeView === view ? 'bg-teal-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
-        {label}
-    </button>
-);
 
 export default function App() {
     const {
@@ -45,7 +40,6 @@ export default function App() {
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
     
-        // Map userActions to options format if they exist
         const optionsFromUserActions = stepConfig?.userActions?.map(action => ({
             title: action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             description: `Click to ${action.replace(/_/g, ' ')}`,
@@ -68,61 +62,109 @@ export default function App() {
     const handleOutlineResponse = React.useCallback((responseData: any) => {
         const chaptersFromOutline = responseData.globalOutline.map((item: any) => ({
             title: item.title,
-            content: '', // Start with empty content
+            summary: item.summary,
+            content: '', 
             status: 'outlined'
         }));
     
-        const newBookState = {
+        const minimizedSpec = {
+            ...bookState,
+            chapters: chaptersFromOutline.map(({ title, summary, status }: any) => ({ title, summary, status })),
+            globalOutline: undefined, 
+        };
+
+        const newBookState: BookState = {
             ...bookState,
             globalOutline: responseData.globalOutline,
-            chapters: chaptersFromOutline
+            chapters: chaptersFromOutline,
+            draftingChapterIndex: 0,
+            minimizedBookSpec: minimizedSpec
         };
     
         setBookState(newBookState);
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
-        handleGenericResponse({}, stepConfig?.userInstruction); // Pass empty object to trigger userActions
+        handleGenericResponse({}, stepConfig?.userInstruction); 
         setMainView('outline');
     }, [bookState, setBookState, getCurrentStep]);
 
     const handleChapterDraftResponse = React.useCallback((responseData: any) => {
-        const chapterIndex = bookState.chapters.findIndex(c => c.title === responseData.chapterTitle);
-        if (chapterIndex === -1) return;
+        if (typeof responseData.chapterNumber !== 'number') {
+            console.error("Invalid chapter number received:", responseData.chapterNumber);
+            addMessage({ id: 'error', sender: 'jim', text: "There was an issue identifying the chapter to update. Let's try again." });
+            return;
+        }
+
+        const chapterIndex = responseData.chapterNumber - 1;
+
+        if (chapterIndex < 0 || chapterIndex >= bookState.chapters.length) {
+            console.error("Chapter index out of bounds:", chapterIndex);
+            addMessage({ id: 'error', sender: 'jim', text: "I seem to have lost my place! Could you tell me which chapter we were working on?" });
+            return;
+        }
 
         const newChapters = [...bookState.chapters];
         newChapters[chapterIndex] = { ...newChapters[chapterIndex], content: responseData.chapterContent, status: 'drafted' };
-        const newBookState = { ...bookState, chapters: newChapters };
+        
+        const newBookState: BookState = { ...bookState, chapters: newChapters };
         setBookState(newBookState);
+        
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         handleGenericResponse({}, stepConfig?.userInstruction);
         setMainView('editor');
-    }, [bookState, setBookState, getCurrentStep]);
+    }, [bookState, setBookState, getCurrentStep, addMessage]);
 
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
         if (isLoading) return;
-
+    
         const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text };
         addMessage(userMessage);
+        const currentDynamicOptions = [...(dynamicOptions || [])];
         setDynamicOptions(null);
         setIsLoading(true);
-
+    
         const currentStep = getCurrentStep();
-        let tempBookState = { ...bookState };
-
+        let tempBookState: BookState = { ...bookState };
+    
         if (isSelection) {
             const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+            
+            let shouldAdvance = true;
+            if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
+                const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
+                if (nextChapterIndex < bookState.chapters.length) {
+                    shouldAdvance = false;
+                    tempBookState = { ...tempBookState, draftingChapterIndex: nextChapterIndex };
+                    setBookState(tempBookState);
+                }
+            }
+            
             if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
                 const key = stepConfig.output.key as keyof BookState;
                 tempBookState = { ...tempBookState, [key]: text };
+    
+                if (key === 'storyline' || key === 'characters') {
+                    const selectedOption = currentDynamicOptions.find(opt => opt.title === text);
+                    if (selectedOption && selectedOption.rationale) {
+                        if (key === 'storyline') {
+                            tempBookState.storylineRationale = selectedOption.rationale;
+                        } else if (key === 'characters') {
+                            tempBookState.charactersRationale = selectedOption.rationale;
+                        }
+                    }
+                }
                 setBookState(tempBookState);
             }
-            advanceStep();
+            
+            if (shouldAdvance) {
+                advanceStep();
+            }
         }
-
+    
         const nextStepId = useBookStore.getState().getCurrentStep().id;
         const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
-
+    
         if (response.success) {
             const nextStepConfig = bookCreationWorkflow.find(s => s.id === nextStepId);
             switch (nextStepConfig?.output.type) {
@@ -134,9 +176,9 @@ export default function App() {
         } else {
             addMessage({ id: 'error', sender: 'jim', text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` });
         }
-
+    
         setIsLoading(false);
-    }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse]);
+    }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse, dynamicOptions]);
 
     React.useEffect(() => {
         if (initRef.current) return;
@@ -150,7 +192,7 @@ export default function App() {
                 id: 'jim-intro',
                 sender: 'jim',
                 text: firstStep.userInstruction || "Hello there, amazing author! 🌟 I'm **Book AI Jim**. To get started, what kind of book are we creating today?",
-                options: firstStep.output.options
+                options: firstStep.output.options as Option[]
             });
         }
     }, []);
@@ -178,7 +220,7 @@ export default function App() {
                                 <div className="p-4 space-y-4">
                                      <div className="space-y-2">
                                         <label htmlFor="ai-model-select" className="font-medium text-gray-200 flex items-center gap-2"><span className="text-base">🧠</span> AI Model</label>
-                                        <select id="ai-model-select" value={selectedModelId} onChange={(e) => setSelectedModelId(e.target.value)} className="w-full p-2 bg-gray-600 rounded-md text-white border border-gray-500 focus:ring-2 focus:ring-teal-400">
+                                        <select id="ai-model-select" value={selectedModelId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedModelId(e.target.value)} className="w-full p-2 bg-gray-600 rounded-md text-white border border-gray-500 focus:ring-2 focus:ring-teal-400">
                                             {AI_MODELS.filter(model => model.active).map(model => (<option key={model.id} value={model.id}>{model.displayName}</option>))}
                                         </select>
                                     </div>
@@ -199,12 +241,12 @@ export default function App() {
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
-                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={(text) => handleSendMessage(text, false)} />
+                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={(text: string) => handleSendMessage(text, false)} />
                             <div className="p-4 border-t border-gray-700 flex items-center gap-2">
                                 <ComboBox 
                                     header={currentStep.title}
                                     options={dynamicOptions || lastMessage?.options || []} 
-                                    onSendMessage={(text) => handleSendMessage(text, true)} 
+                                    onSendMessage={(text: string) => handleSendMessage(text, true)} 
                                     isLoading={isLoading} 
                                 />
                             </div>
@@ -212,7 +254,7 @@ export default function App() {
                     ) : (
                          <div className="flex flex-col items-center pt-4">
                             <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors" title="Expand chat">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 R8-9 8a9.863 9.863 0 01-4.252-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03-8-9 8a9.863 9.863 0 01-4.252-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                             </button>
                         </div>
                     )}
@@ -231,7 +273,7 @@ export default function App() {
                         {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}
                          {mainView === 'outline' && <ChapterOutline bookState={bookState} />}
                         {mainView === 'editor' && <MarkdownEditor bookState={bookState} onContentChange={handleContentChange} exportBook={() => {}} />}
-                        {mainView === 'progress' && <ProgressTracker progress={useBookStore.getState().progress} />}
+                        {mainView === 'progress' && <ProgressTracker progress={useBookStore.getState().progress} bookState={bookState} />}
                     </div>
                 </main>
             </div>
