@@ -39,39 +39,49 @@ export default function App() {
     const [isChatOpen, setIsChatOpen] = React.useState(true);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = React.useState(false);
     const headerMenuRef = React.useRef<HTMLDivElement>(null);
+    const initRef = React.useRef(false);
 
-    const handleGenericResponse = (responseData: any) => {
+    const handleGenericResponse = (responseData: any, message?: string) => {
+        const currentStep = getCurrentStep();
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+    
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             sender: 'jim',
-            text: responseData.message || "Here are some options to get us started. Let me know what you think!",
+            text: message || stepConfig?.userInstruction || "Here are some options. What do you think?",
             options: responseData.options || [],
             bestOption: responseData.bestOption,
         };
+    
         if (responseData.options) {
             setDynamicOptions(responseData.options);
         }
+    
         addMessage(jimResponse);
     };
 
     const handleOutlineResponse = React.useCallback((responseData: any) => {
         const newBookState = { ...bookState, globalOutline: responseData.globalOutline };
         setBookState(newBookState);
-        handleGenericResponse({ message: "I've drafted an outline for your book. Take a look and let me know if you'd like any changes before we start drafting the first chapter." });
+        const currentStep = getCurrentStep();
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+        handleGenericResponse({ message: stepConfig?.userInstruction });
         setMainView('outline');
-    }, [bookState, setBookState]);
+    }, [bookState, setBookState, getCurrentStep]);
 
     const handleChapterDraftResponse = React.useCallback((responseData: any) => {
         const chapterIndex = bookState.chapters.findIndex(c => c.title === responseData.chapterTitle);
-        if (chapterIndex === -1) return; // Or handle error appropriately
+        if (chapterIndex === -1) return;
 
         const newChapters = [...bookState.chapters];
         newChapters[chapterIndex] = { ...newChapters[chapterIndex], content: responseData.chapterContent, status: 'drafted' };
         const newBookState = { ...bookState, chapters: newChapters };
         setBookState(newBookState);
-        handleGenericResponse({ message: `Here is the first draft of **${responseData.chapterTitle}**. You can review it in the editor and let me know if you have any feedback.` });
+        const currentStep = getCurrentStep();
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+        handleGenericResponse({ message: stepConfig?.userInstruction });
         setMainView('editor');
-    }, [bookState, setBookState]);
+    }, [bookState, setBookState, getCurrentStep]);
 
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
         if (isLoading) return;
@@ -113,6 +123,9 @@ export default function App() {
     }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse]);
 
     React.useEffect(() => {
+        if (initRef.current) return;
+        initRef.current = true;
+
         if (messages.length > 0) return;
 
         const firstStep = bookCreationWorkflow[0];
@@ -120,7 +133,7 @@ export default function App() {
             addMessage({
                 id: 'jim-intro',
                 sender: 'jim',
-                text: "Hello there, amazing author! 🌟 I'm **Book AI Jim**. To get started, what kind of book are we creating today?",
+                text: firstStep.userInstruction || "Hello there, amazing author! 🌟 I'm **Book AI Jim**. To get started, what kind of book are we creating today?",
                 options: firstStep.output.options
             });
         }

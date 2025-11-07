@@ -3,15 +3,9 @@ import { create } from 'zustand';
 import { ChatMessage, ProgressPhase, BookState, Option } from '../types';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 
-// --- Utility Functions (could be moved to a separate file if they grow) ---
+// --- Utility Functions ---
 
-type WorkflowStep = {
-    id: string;
-    title: string;
-    phase: string;
-};
-
-const transformWorkflowToProgress = (workflow: WorkflowStep[]): ProgressPhase[] => {
+const transformWorkflowToProgress = (workflow: typeof bookCreationWorkflow): ProgressPhase[] => {
     const phases: { [key: string]: ProgressPhase } = {};
     workflow.forEach(step => {
         if (!phases[step.phase]) {
@@ -27,7 +21,6 @@ const getFlatSteps = (workflow: typeof bookCreationWorkflow) => workflow.map(ste
 // --- Store Definition ---
 
 interface BookStore {
-    // State
     messages: ChatMessage[];
     progress: ProgressPhase[];
     flatSteps: { id: string, title: string }[];
@@ -36,19 +29,13 @@ interface BookStore {
     isLoading: boolean;
     dynamicOptions: Option[] | null;
 
-    // Actions
     addMessage: (message: ChatMessage) => void;
-    setProgress: (progress: ProgressPhase[]) => void;
-    setCurrentStepIndex: (index: number) => void;
     setBookState: (bookState: BookState) => void;
     setIsLoading: (isLoading: boolean) => void;
     setDynamicOptions: (options: Option[] | null) => void;
     
-    // Derived State (optional, but good practice)
     getCurrentStep: () => { id: string, title: string };
-
-    // Complex Actions
-    advanceStep: (stepId: string) => void;
+    advanceStep: () => void; // Simplified advanceStep
 }
 
 export const useBookStore = create<BookStore>((set, get) => ({
@@ -63,8 +50,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
 
     // --- Actions ---
     addMessage: (message) => set(state => ({ messages: [...state.messages, message] })),
-    setProgress: (progress) => set({ progress }),
-    setCurrentStepIndex: (index) => set({ currentStepIndex: index }),
     setBookState: (bookState) => set({ bookState }),
     setIsLoading: (isLoading) => set({ isLoading }),
     setDynamicOptions: (options) => set({ dynamicOptions: options }),
@@ -76,21 +61,24 @@ export const useBookStore = create<BookStore>((set, get) => ({
     },
 
     // --- Complex Actions ---
-    advanceStep: (stepId: string) => {
+    advanceStep: () => {
         const { progress, currentStepIndex, flatSteps } = get();
+        const currentStepId = flatSteps[currentStepIndex].id;
         
         // Update progress completion
         const newProgress = progress.map(phase => ({
             ...phase,
-            steps: phase.steps.map(step => step.id === stepId ? { ...step, completed: true } : step)
+            steps: phase.steps.map(step => 
+                step.id === currentStepId ? { ...step, completed: true } : step
+            )
         }));
         
-        // Advance to the next step if not at the end
+        // Advance to the next step
         const nextStepIndex = currentStepIndex + 1;
         if (nextStepIndex < flatSteps.length) {
             set({ progress: newProgress, currentStepIndex: nextStepIndex });
         } else {
-            set({ progress: newProgress }); // Just update progress if it's the last step
+            set({ progress: newProgress }); 
         }
     },
 }));
