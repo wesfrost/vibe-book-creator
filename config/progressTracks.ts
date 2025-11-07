@@ -17,7 +17,9 @@ export const FICTION_PROGRESS: ProgressPhase[] = [
         name: 'Phase 2: Structure & Character Development',
         steps: [
             { name: 'Main Storyline Solidified', completed: false },
-            { name: 'Key Characters Defined', completed: false },
+            { name: 'Protagonist Defined', completed: false },
+            { name: 'Antagonist Defined', completed: false },
+            { name: 'Supporting Characters Defined', completed: false },
             { name: 'Number of Chapters Defined', completed: false },
         ]
     },

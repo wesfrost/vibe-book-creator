@@ -3,9 +3,8 @@ import { callGemini, GeminiResponse, GeminiCallParams } from './geminiService';
 import * as Personas from './personas';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 import { ChatMessage, BookState } from '../types';
-import { Type } from "@google/genai";
+import { Type, Content, Schema } from "@google/genai";
 
-// A simple map to get the persona object from its name
 const personaMap: { [key: string]: string } = {
     ORCHESTRATOR: Personas.ORCHESTRATOR_PERSONA,
     STRATEGIST: Personas.STRATEGIST_PERSONA,
@@ -14,33 +13,29 @@ const personaMap: { [key: string]: string } = {
     MARKETER: Personas.MARKETER_PERSONA,
 };
 
-// --- Main Orchestration Logic ---
-export const processStep = async (
-    history: ChatMessage[],
-    stepId: string,
-    bookState: BookState,
-    modelId: string
-): Promise<GeminiResponse<any>> => {
-
+const buildMasterContext = (bookState: BookState, stepId: string): Content[] => {
     const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
+    if (!stepConfig) return [];
 
-    if (!stepConfig) {
-        const errorMsg = `Unknown step ID: ${stepId}`;
-        console.error(errorMsg);
-        return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
+    const bookStateForPrompt = { ...bookState };
+
+    if (stepId === 'draft_chapter') {
+        // For drafting, include the content of previously drafted chapters for context
+        bookStateForPrompt.chapters = bookState.chapters.map((chapter, index) => {
+            if (index < (bookState.draftingChapterIndex || 0)) {
+                return chapter; // Include full chapter object for previous chapters
+            }
+            // For current and future chapters, just send the outline
+            return { title: chapter.title, summary: chapter.summary, status: chapter.status };
+        });
+    } else {
+        // For all other steps, only send the outline to save tokens
+        // @ts-ignore
+        bookStateForPrompt.chapters = bookState.chapters.map(({ title, summary, status }) => ({ title, summary, status }));
     }
 
-    const personaText = personaMap[stepConfig.persona || 'ORCHESTRATOR'];
-    
-    // Determine which book state to use
-    const bookStateForPrompt = bookState.minimizedBookSpec || bookState;
 
-    // Construct the prompt
-    const historyString = history.slice(-5).map(m => `${m.sender}: ${m.text}`).join('\n');
     let prompt = `
-Here is the recent conversation history:
-${historyString}
-
 Here is the current state of the book we are writing:
 ${JSON.stringify(bookStateForPrompt, null, 2)}
 
@@ -57,23 +52,56 @@ ${stepConfig.prompt}
         }
     }
 
+    if (stepId === 'draft_chapter' && bookState.writingStyle) {
+        prompt += `\n\n**Writing Style:** The writing style should be **${bookState.writingStyle}**.`
+    }
+
+    if (stepId === 'create_outline' && bookState.numberOfChapters) {
+        prompt += `\n\n**Constraint:** The outline should be for a book with approximately **${bookState.numberOfChapters}** chapters.`
+    }
+
     if (stepConfig.userActions.includes('select_option')) {
-        const goldenRule = "Your primary goal is to provide researched, best selling, actionable, structured 'options' for the user to select. If the user provides feedback, use it to refine and generate a *better* set of options for the same step. Always present the user with choices. You may also suggest a `bestOption` (the 0-indexed number of the option you recommend the most).";
-        prompt += `\n\n**Golden Rule:** ${goldenRule}`;
+        prompt += `\n\n**Golden Rule:** Your primary goal is to provide researched, best selling, actionable, structured 'options' for the user to select. Always present the user with choices.`;
     }
 
     if (stepConfig.output.schema && stepConfig.output.schema.type === Type.OBJECT) {
         prompt += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
+    
+    return [{ role: "user", parts: [{ text: prompt }] }];
+};
+
+export const processStep = async (
+    history: ChatMessage[],
+    stepId: string,
+    bookState: BookState,
+    modelId: string
+): Promise<GeminiResponse<any>> => {
+    const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
+    if (!stepConfig) {
+        return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
+    }
+
+    const masterContext = buildMasterContext(bookState, stepId);
+    
+    // Filter out system messages and convert to the format Gemini expects
+    const chatHistory: Content[] = history
+        .filter(msg => !msg.isSystem)
+        .map(msg => ({
+            role: msg.sender === 'jim' ? 'model' : 'user',
+            parts: [{ text: msg.text }]
+        })).slice(-10);
+
+    const contents: Content[] = [...masterContext, ...chatHistory];
 
     const geminiParams: GeminiCallParams = {
-        systemInstruction: personaText,
-        prompt,
+        systemInstruction: personaMap[stepConfig.persona || 'ORCHESTRATOR'],
+        contents: contents,
         modelId,
     };
 
     if (stepConfig.output.schema) {
-        geminiParams.responseSchema = stepConfig.output.schema;
+        geminiParams.responseSchema = stepConfig.output.schema as Schema;
     }
 
     return await callGemini(geminiParams);

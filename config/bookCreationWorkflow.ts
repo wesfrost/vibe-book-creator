@@ -90,6 +90,20 @@ export const bookCreationWorkflow = [
         }
     },
     {
+        id: 'define_writing_style',
+        phase: 'Phase 1: Concept & Research',
+        title: 'Writing Style Defined',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Let's define the writing style. This will determine the author's voice and have a big impact on the reader's experience. What style are you going for?",
+        prompt: "Based on the genre and vibe, suggest 3-5 distinct writing styles with a brief rationale for each.",
+        output: {
+            type: 'options',
+            key: 'writingStyle',
+            schema: optionSchema
+        }
+    },
+    {
         id: 'define_audience',
         phase: 'Phase 1: Concept & Research',
         title: 'Target Audience Identified',
@@ -118,17 +132,63 @@ export const bookCreationWorkflow = [
         }
     },
     {
-        id: 'develop_characters',
+        id: 'define_protagonist',
         phase: 'Phase 2: Structure & Character Development',
-        title: 'Key Characters Defined',
+        title: 'Protagonist Defined',
         persona: 'STRATEGIST',
         userActions: ['select_option'],
-        userInstruction: "Great stories are about great characters. Let's start developing the people who will inhabit your world. I've sketched out some ideas for your main characters. Which set of characters are you most excited to explore?",
-        prompt: "Readers connect with unforgettable characters. Based on our storyline, create three distinct sets of main characters. For each set, provide a 'title' that summarizes the character dynamic (e.g., 'The Reluctant Hero and the Power-Hungry Sorcerer'). In the 'rationale', provide a compelling, one-paragraph description covering both the protagonist and the antagonist, highlighting their core motivations and the central conflict between them. This description is crucial and should give a real sense of who these characters are.",
+        userInstruction: "Let's create a compelling protagonist. A great hero is relatable and has clear motivations. Which of these protagonists do you want to be the star of your story?",
+        prompt: "Based on the storyline, create three distinct protagonist options. For each, provide a 'title' (a short descriptor, e.g., 'The Jaded Detective'), and a 'rationale' (a one-paragraph description of their backstory, motivations, and fatal flaw).",
         output: {
             type: 'options',
-            key: 'characters',
+            key: 'protagonist',
             schema: optionSchema
+        }
+    },
+    {
+        id: 'define_antagonist',
+        phase: 'Phase 2: Structure & Character Development',
+        title: 'Antagonist Defined',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Every hero needs a great villain. The antagonist should be a worthy opponent for your protagonist. Which of these antagonists will challenge your hero?",
+        prompt: "Based on the protagonist and storyline, create three distinct antagonist options. For each, provide a 'title' (e.g., 'The Mastermind Hacker'), and a 'rationale' (a one-paragraph description of their motivations, methods, and how they conflict with the protagonist).",
+        output: {
+            type: 'options',
+            key: 'antagonist',
+            schema: optionSchema
+        }
+    },
+    {
+        id: 'define_supporting_characters',
+        phase: 'Phase 2: Structure & Character Development',
+        title: 'Supporting Characters Defined',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Let's round out the cast with some supporting characters. These characters can help or hinder your protagonist. Which set of supporting characters will you add to your story?",
+        prompt: "Based on the protagonist and antagonist, create three distinct sets of supporting characters. For each set, provide a 'title' (e.g., 'The Loyal Sidekick and the Wise Mentor'), and a 'rationale' (a one-paragraph description of the key supporting characters and their roles in the story).",
+        output: {
+            type: 'options',
+            key: 'supportingCharacters',
+            schema: optionSchema
+        }
+    },
+    {
+        id: 'define_number_of_chapters',
+        phase: 'Phase 2: Structure & Character Development',
+        title: 'Number of Chapters Defined',
+        persona: 'STRATEGIST',
+        userActions: ['select_option'],
+        userInstruction: "Let's decide on the length of your book. A typical novel has between 20 and 30 chapters. How many chapters are you aiming for?",
+        prompt: "Based on the genre and the typical length of books in this genre, suggest a few options for the number of chapters. Also, include an option for a custom number.",
+        output: {
+            type: 'options',
+            key: 'numberOfChapters',
+            options: [
+                { title: '10-15 chapters (Novella)' },
+                { title: '20-30 chapters (Standard Novel)' },
+                { title: '30+ chapters (Epic Novel)' },
+            ]
         }
     },
     {

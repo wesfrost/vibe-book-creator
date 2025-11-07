@@ -13,6 +13,7 @@ export interface ChatMessage {
     bestOption?: number;
     isAnalysis?: boolean;
     isAuto?: boolean;
+    isSystem?: boolean; // Add system message flag
     postChapterMessage?: string;
     chapterTitle?: string;
     chapterContent?: string;
@@ -42,14 +43,16 @@ export interface BookState {
     title?: string;
     coreIdea?: string;
     vibe?: string;
+    writingStyle?: string;
     audience?: string;
     storyline?: string;
     storylineRationale?: string;
-    characters?: any;
-    charactersRationale?: string; // Add characters rationale
+    protagonist?: any;
+    antagonist?: any;
+    supportingCharacters?: any[];
+    numberOfChapters?: number;
     globalOutline?: any[];
     chapters: Chapter[];
     marketing?: any;
     draftingChapterIndex?: number;
-    minimizedBookSpec?: any; 
 }

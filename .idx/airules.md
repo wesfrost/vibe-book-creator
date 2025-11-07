@@ -18,6 +18,10 @@ Please follow the following guidelines when generating code.
 You can find the official SDK documentation and code samples here:
 https://googleapis.github.io/js-genai/
 
+## Coding, Architecture, and Debugging
+Always run npm run dev as a background process
+
+
 ## Golden Rule: Use the Correct and Current SDK
 
 Always use the Google Gen AI SDK to call the Gemini models, which is the
@@ -82,24 +86,7 @@ const ai = new GoogleGenAI({});
 
 ## Models
 
--   By default, use the following models when using `google-genai`:
-    -   **General Text & Multimodal Tasks:** `gemini-2.5-flash`
-    -   **Coding and Complex Reasoning Tasks:** `gemini-2.5-pro`
-    -   **Image Generation Tasks:** `imagen-4.0-fast-generate-001`,
-        `imagen-4.0-generate-001` or `imagen-4.0-ultra-generate-001`
-    -   **Image Editing Tasks:** `gemini-2.5-flash-image-preview`
-    -   **Video Generation Tasks:** `veo-3.0-fast-generate-preview` or
-        `veo-3.0-generate-preview`.
 
--   It is also acceptable to use the following model if explicitly requested by
-    the user:
-    -   **Gemini 2.0 Series**: `gemini-2.0-flash`, `gemini-2.0-pro`
-
--   Do not use the following deprecated models (or their variants like
-    `gemini-1.5-flash-latest`):
-    -   **Prohibited:** `gemini-1.5-flash`
-    -   **Prohibited:** `gemini-1.5-pro`
-    -   **Prohibited:** `gemini-pro`
 
 ## Basic Inference (Text Generation)
 

@@ -7,6 +7,7 @@ Narrative style or help ebooks
 Chat Session SDK.
 Manage a session based on a user and where we are in the book. We may have to clear it and start a new one when we edit the full manuscript.
 -- Or attaching files. Attach the manuscript...automatically
+Rolling input token window first in first out
 
 How many chapters
 

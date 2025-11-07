@@ -36,7 +36,25 @@ export default function App() {
     const headerMenuRef = React.useRef<HTMLDivElement>(null);
     const initRef = React.useRef(false);
 
-    const handleGenericResponse = (responseData: any, message?: string) => {
+    const handleApiResponse = (response: any, stepId: string) => {
+        const stepConfig = bookCreationWorkflow.find(s => s.id === stepId);
+        switch (stepConfig?.output.type) {
+            case 'outline':
+                handleOutlineResponse(response);
+                break;
+            case 'chapter_draft':
+                handleChapterDraftResponse(response);
+                break;
+            case 'options':
+                handleGenericResponse(response);
+                break;
+            default:
+                addMessage({ id: 'error', sender: 'jim', text: `I received an unexpected response from the AI. Let's try that again.` });
+                break;
+        }
+    };
+
+    const handleGenericResponse = (responseData: any) => {
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
     
@@ -50,7 +68,7 @@ export default function App() {
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             sender: 'jim',
-            text: message || stepConfig?.userInstruction || "Here are some options. What do you think?",
+            text: responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?",
             options: finalOptions,
             bestOption: responseData.bestOption,
         };
@@ -67,18 +85,11 @@ export default function App() {
             status: 'outlined'
         }));
     
-        const minimizedSpec = {
-            ...bookState,
-            chapters: chaptersFromOutline.map(({ title, summary, status }: any) => ({ title, summary, status })),
-            globalOutline: undefined, 
-        };
-
         const newBookState: BookState = {
             ...bookState,
             globalOutline: responseData.globalOutline,
             chapters: chaptersFromOutline,
             draftingChapterIndex: 0,
-            minimizedBookSpec: minimizedSpec
         };
     
         setBookState(newBookState);
@@ -90,7 +101,6 @@ export default function App() {
 
     const handleChapterDraftResponse = React.useCallback((responseData: any) => {
         if (typeof responseData.chapterNumber !== 'number') {
-            console.error("Invalid chapter number received:", responseData.chapterNumber);
             addMessage({ id: 'error', sender: 'jim', text: "There was an issue identifying the chapter to update. Let's try again." });
             return;
         }
@@ -98,7 +108,6 @@ export default function App() {
         const chapterIndex = responseData.chapterNumber - 1;
 
         if (chapterIndex < 0 || chapterIndex >= bookState.chapters.length) {
-            console.error("Chapter index out of bounds:", chapterIndex);
             addMessage({ id: 'error', sender: 'jim', text: "I seem to have lost my place! Could you tell me which chapter we were working on?" });
             return;
         }
@@ -118,14 +127,21 @@ export default function App() {
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
         if (isLoading) return;
     
-        const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text };
+        const userMessage: ChatMessage = { 
+            id: Date.now().toString(), 
+            sender: 'user', 
+            text,
+            isSystem: isSelection // Flag selections as system messages
+        };
         addMessage(userMessage);
+        
         const currentDynamicOptions = [...(dynamicOptions || [])];
         setDynamicOptions(null);
         setIsLoading(true);
     
         const currentStep = getCurrentStep();
         let tempBookState: BookState = { ...bookState };
+        let nextStepId = currentStep.id;
     
         if (isSelection) {
             const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
@@ -159,20 +175,14 @@ export default function App() {
             
             if (shouldAdvance) {
                 advanceStep();
+                nextStepId = useBookStore.getState().getCurrentStep().id;
             }
         }
-    
-        const nextStepId = useBookStore.getState().getCurrentStep().id;
+        
         const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
     
         if (response.success) {
-            const nextStepConfig = bookCreationWorkflow.find(s => s.id === nextStepId);
-            switch (nextStepConfig?.output.type) {
-                case 'outline': handleOutlineResponse(response.data); break;
-                case 'chapter_draft': handleChapterDraftResponse(response.data); break;
-                case 'options': handleGenericResponse(response.data); break;
-                default: addMessage({ id: 'error', sender: 'jim', text: `I received an unexpected response from the AI. Let's try that again.` }); break;
-            }
+            handleApiResponse(response.data, nextStepId);
         } else {
             addMessage({ id: 'error', sender: 'jim', text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` });
         }
