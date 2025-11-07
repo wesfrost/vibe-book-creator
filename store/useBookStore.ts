@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { ChatMessage, ProgressPhase, BookState, Option } from '../types';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
+import { Chat } from '@google/genai';
 
 // --- Utility Functions ---
 
@@ -28,14 +29,16 @@ interface BookStore {
     bookState: BookState;
     isLoading: boolean;
     dynamicOptions: Option[] | null;
+    chatSession: Chat | null;
 
     addMessage: (message: ChatMessage) => void;
     setBookState: (bookState: BookState) => void;
     setIsLoading: (isLoading: boolean) => void;
     setDynamicOptions: (options: Option[] | null) => void;
+    setChatSession: (session: Chat) => void;
     
     getCurrentStep: () => { id: string, title: string };
-    advanceStep: () => void; // Simplified advanceStep
+    advanceStep: () => void;
 }
 
 export const useBookStore = create<BookStore>((set, get) => ({
@@ -47,12 +50,14 @@ export const useBookStore = create<BookStore>((set, get) => ({
     bookState: { chapters: [] },
     isLoading: false,
     dynamicOptions: null,
+    chatSession: null,
 
     // --- Actions ---
     addMessage: (message) => set(state => ({ messages: [...state.messages, message] })),
     setBookState: (bookState) => set({ bookState }),
     setIsLoading: (isLoading) => set({ isLoading }),
     setDynamicOptions: (options) => set({ dynamicOptions: options }),
+    setChatSession: (session) => set({ chatSession: session }),
     
     // --- Derived State ---
     getCurrentStep: () => {
@@ -65,7 +70,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
         const { progress, currentStepIndex, flatSteps } = get();
         const currentStepId = flatSteps[currentStepIndex].id;
         
-        // Update progress completion
         const newProgress = progress.map(phase => ({
             ...phase,
             steps: phase.steps.map(step => 
@@ -73,7 +77,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
             )
         }));
         
-        // Advance to the next step
         const nextStepIndex = currentStepIndex + 1;
         if (nextStepIndex < flatSteps.length) {
             set({ progress: newProgress, currentStepIndex: nextStepIndex });
