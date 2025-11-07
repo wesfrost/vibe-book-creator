@@ -68,7 +68,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Let's nail down the central concept of your book. The core idea is the 'what if' that drives your story. I've drafted a few options. Which one resonates with you the most?",
-        prompt: "Based on the format, genre, and current trends in ebooks let's generate 5 distinct and compelling one-sentence ideas for the book's central premise. Provide a rationale for each.",
+        prompt: "Based on our chosen format and genre, generate 3 distinct core ideas that have strong market potential. Analyze current bestseller lists for similar books and explain why each idea is compelling and likely to attract readers.",
         output: {
             type: 'options',
             key: 'coreIdea',
@@ -82,7 +82,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Now, let's establish the overall mood and feeling of your book. The vibe will influence your writing style and the reader's emotional journey. Pick the vibe that best captures the atmosphere you want to create.",
-        prompt: "Based on the format, genre, core idea, and current trends in ebooks generate 5 distinct and compelling options for the mood and feeling (e.g., 'Dark and gritty', 'Hopeful and optimistic'). Provide a rationale for each.",
+        prompt: "Based on our concept and genre, what kind of vibe resonates most with top-selling authors in this space? Generate 3 distinct options for the book's vibe and provide a rationale for each, explaining how it aligns with reader expectations and market trends.",
         output: {
             type: 'options',
             key: 'vibe',
@@ -96,7 +96,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Knowing your reader is key. Let's think about who this book is for. I've created a few potential audience profiles. Which group are you hoping to connect with?",
-        prompt: "Based on the format, genre, core idea, vibe and current trends in ebooks generate 5 distinct and compelling target audience profiles. Provide a rationale for each.",
+        prompt: "To maximize our chances of creating a bestseller, let's define our target audience. Analyze the readership of current bestsellers in our genre and create 3 distinct and detailed target audience profiles. For each, describe their demographics, reading habits, and what they look for in a book. Provide a rationale for why targeting this group is a good strategy.",
         output: {
             type: 'options',
             key: 'audience',
@@ -110,7 +110,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Time to start building the narrative! A strong storyline is the backbone of any great book. Here are a few potential plot directions. Choose the one that you find most compelling.",
-        prompt: "Let's flesh out the story. Based on our concept, generate three potential storylines. Each should have a clear beginning, middle, and end.",
+        prompt: "Based on the format, genre, coreIdea, vibe of the book we are writing and current top selling trends in ebooks, generate 5 distinct and compelling options for the main storyline. Provide a rationale for eachpotential storylines. Each should have a clear beginning, middle, and end.",
         output: {
             type: 'options',
             key: 'storyline',
@@ -124,7 +124,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Great stories are about great characters. Let's start developing the people who will inhabit your world. I've sketched out some ideas for your main characters. Which set of characters are you most excited to explore?",
-        prompt: "Let's bring the main characters to life. Create three distinct sets of main characters. For each, describe the protagonist and antagonist.",
+        prompt: "Readers connect with unforgettable characters. Based on our storyline, create three distinct sets of main characters. For each set, describe a protagonist that readers will root for and an antagonist that provides a compelling conflict. Analyze character archetypes common in bestselling books within our genre and explain how these characters fit or subvert those expectations.",
         output: {
             type: 'options',
             key: 'characters',
@@ -138,7 +138,7 @@ export const bookCreationWorkflow = [
         persona: 'WRITER',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "Here's the chapter-by-chapter outline for your book. This is our roadmap. You can either approve it as is, or request specific changes. Let me know what you think!",
-        prompt: "Let's build the skeleton of our story. Create a detailed, chapter-by-chapter outline. Each entry should summarize key events and character developments.",
+        prompt: "Let's build the skeleton of our story, keeping the pacing of a bestseller in mind. Create a detailed, chapter-by-chapter outline. Each entry should summarize key events, plot twists, and character developments, ensuring a compelling narrative arc that will keep readers hooked from beginning to end. Reference common story structures like the three-act structure if applicable.",
         output: {
             type: 'outline',
             schema: {
@@ -167,7 +167,7 @@ export const bookCreationWorkflow = [
         persona: 'WRITER',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "The first draft of the chapter is ready! Read it over and see how it feels. You can ask for revisions or, if you're happy with it, we can move on to the next step.",
-        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear storytelling and hitting all key points.",
+        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear, compelling prose that's easy to read. Use techniques common in bestselling novels like cliffhangers, strong hooks, and vivid descriptions to keep the reader engaged.",
         output: {
             type: 'chapter_draft',
             schema: {
@@ -187,14 +187,14 @@ export const bookCreationWorkflow = [
         persona: 'EDITOR',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "I've gone through the chapter with an editor's eye. Here's the revised version with feedback and suggestions. Let me know if you want more changes or if you're ready to approve it.",
-        prompt: "Let's polish the draft. Review the chapter for clarity, pacing, grammar, and style. Provide specific feedback and suggest concrete improvements.",
+        prompt: "Let's polish the draft like a bestselling editor would. Review the chapter for clarity, pacing, grammar, and style. Provide specific, actionable feedback and suggest concrete improvements to strengthen the narrative, tighten the prose, and heighten the emotional impact.",
         output: {
             type: 'chapter_review',
             schema: {
                 type: Type.OBJECT,
                 properties: {
                     editedContent: { type: Type.STRING, description: 'The revised chapter content in Markdown.' },
-                    feedback: { type: 'string', description: 'A summary of the key edits and suggestions for improvement.' }
+                    feedback: { type: Type.STRING, description: 'A summary of the key edits and suggestions for improvement.' }
                 }
             }
         }
@@ -206,7 +206,7 @@ export const bookCreationWorkflow = [
         persona: 'MARKETER',
         userActions: ['select_option'],
         userInstruction: "Let's get the word out! I've created some marketing materials to help you promote your book. Choose the option that you think will best capture your target audience's attention.",
-        prompt: "Let's get ready to launch! Generate three options for marketing materials. Each should include a compelling back-cover blurb and a list of relevant keywords.",
+        prompt: "Let's get ready to launch! Based on an analysis of current bestsellers on platforms like Amazon Kindle, generate three options for marketing materials. Each should include a compelling back-cover blurb designed to convert browsers into buyers, and a list of high-traffic, low-competition keywords for discoverability.",
         output: {
             type: 'options',
             key: 'marketing',
