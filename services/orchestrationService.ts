@@ -31,7 +31,6 @@ export const processStep = async (
     }
 
     const personaText = personaMap[stepConfig.persona || 'ORCHESTRATOR'];
-    const responseSchema = stepConfig.output.schema;
     
     // Determine which book state to use
     const bookStateForPrompt = bookState.minimizedBookSpec || bookState;
@@ -63,7 +62,7 @@ ${stepConfig.prompt}
         prompt += `\n\n**Golden Rule:** ${goldenRule}`;
     }
 
-    if (responseSchema && responseSchema.type === Type.OBJECT) {
+    if (stepConfig.output.schema && stepConfig.output.schema.type === Type.OBJECT) {
         prompt += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
 
@@ -73,8 +72,8 @@ ${stepConfig.prompt}
         modelId,
     };
 
-    if (responseSchema) {
-        geminiParams.responseSchema = responseSchema;
+    if (stepConfig.output.schema) {
+        geminiParams.responseSchema = stepConfig.output.schema;
     }
 
     return await callGemini(geminiParams);

@@ -9,3 +9,7 @@ Manage a session based on a user and where we are in the book. We may have to cl
 -- Or attaching files. Attach the manuscript...automatically
 
 How many chapters
+
+We can "ground" our ai with a "search server to look for information" each source DB is a mini expert.
+BraveSearch API for dev. - free tier free credits each month
+microsoft search is also cheaper than google
