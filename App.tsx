@@ -58,7 +58,7 @@ export default function App() {
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             role: 'model',
-            parts: [{ text: messageOverride || responseData.refinementMessage || responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?" }],
+            parts: [{ text: messageOverride || responseData.refinementMessage || stepConfig?.userInstruction || "Here are some options. What do you think?" }],
             options: finalOptions,
             bestOption: responseData.bestOption,
         };
@@ -142,7 +142,11 @@ export default function App() {
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         
         let shouldAdvance = true;
-        if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
+        if ((stepConfig?.id === 'draft_chapter' || stepConfig?.id === 'review_chapter' || stepConfig?.id === 'create_outline') && text.toLowerCase().includes('request')) {
+            shouldAdvance = false;
+            addMessage({ id: (Date.now() + 1).toString(), role: 'model', parts: [{ text: "Of course! What changes would you like to make?" }] });
+        }
+        else if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
             const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
             if (nextChapterIndex < bookState.chapters.length) {
                 shouldAdvance = false;

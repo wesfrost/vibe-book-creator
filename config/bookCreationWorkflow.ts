@@ -1,6 +1,7 @@
 
 import { Type } from '@google/genai';
 import { BOOK_FORMAT_OPTIONS } from './bookFormats';
+import { NUMBER_OF_OPTIONS } from '../constants';
 
 const optionSchema = {
     type: Type.OBJECT,
@@ -16,9 +17,10 @@ const optionSchema = {
                 required: ['title', 'rationale']
             }
         },
-        bestOption: { type: Type.INTEGER, description: 'The 0-indexed number of the option you recommend the most.' },
-        refinementMessage: { type: Type.STRING, description: "A brief, conversational message acknowledging the user's refinement and introducing the new options." }
-    }
+        bestOption: { type: Type.INTEGER, description: `The 0-indexed number of the option you recommend the most.` },
+        refinementMessage: { type: Type.STRING, description: "A brief, conversational message acknowledging the user's refinement and introducing the new options. This is required." }
+    },
+    required: ['options', 'refinementMessage']
 };
 
 export const bookCreationWorkflow = [
@@ -41,7 +43,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Great, now let's pick a genre. The genre will set the tone and reader expectations for your book. I've generated a few options based on your chosen format. Which one feels right?",
-        prompt: "Based on the book format, research curent trends and see what genres are at the top of the ebook selling charts. Generate 5 distinct and compelling genre options based on the research, including a rationale for each.",
+        prompt: `Based on the book format, research curent trends and see what genres are at the top of the ebook selling charts. Generate ${NUMBER_OF_OPTIONS} distinct and compelling genre options based on the research, including a rationale for each.`,
         temperature: 0.4,
         output: {
             type: 'options',
@@ -56,7 +58,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "It's time to give your project a name! A good title is catchy and hints at the story within. Here are a few ideas to get us started. Select the one you like best, or we can brainstorm more.",
-        prompt: "Based on the format, genre, and current trends in ebooks let's brainstorm a working title. Generate 3 distinct and compelling working title options, including a rationale for each.",
+        prompt: `Based on the format, genre, and current trends in ebooks let's brainstorm a working title. Generate ${NUMBER_OF_OPTIONS} distinct and compelling working title options, including a rationale for each.`,
         temperature: 0.9,
         output: {
             type: 'options',
@@ -71,7 +73,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Let's nail down the central concept of your book. The core idea is the 'what if' that drives your story. I've drafted a few options. Which one resonates with you the most?",
-        prompt: "Based on our chosen format and genre, generate 3 distinct core ideas that have strong market potential. Analyze current bestseller lists for similar books and explain why each idea is compelling and likely to attract readers.",
+        prompt: `Based on our chosen format and genre, generate ${NUMBER_OF_OPTIONS} distinct core ideas that have strong market potential. Analyze current bestseller lists for similar books and explain why each idea is compelling and likely to attract readers.`,
         temperature: 0.8,
         output: {
             type: 'options',
@@ -86,7 +88,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Now, let's establish the overall mood and feeling of your book. The vibe will influence your writing style and the reader's emotional journey. Pick the vibe that best captures the atmosphere you want to create.",
-        prompt: "Based on our concept and genre, what kind of vibe resonates most with top-selling authors in this space? Generate 3 distinct options for the book's vibe and provide a rationale for each, explaining how it aligns with reader expectations and market trends.",
+        prompt: `Based on our concept and genre, what kind of vibe resonates most with top-selling authors in this space? Generate ${NUMBER_OF_OPTIONS} distinct options for the book's vibe and provide a rationale for each, explaining how it aligns with reader expectations and market trends.`,
         temperature: 0.9,
         output: {
             type: 'options',
@@ -101,7 +103,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Knowing your reader is key. Let's think about who this book is for. I've created a few potential audience profiles. Which group are you hoping to connect with?",
-        prompt: "To maximize our chances of creating a bestseller, let's define our target audience. Analyze the readership of current bestsellers in our genre and create 3 distinct and detailed target audience profiles. For each, describe their demographics, reading habits, and what they look for in a book. Provide a rationale for why targeting this group is a good strategy.",
+        prompt: `To maximize our chances of creating a bestseller, let's define our target audience. Analyze the readership of current bestsellers in our genre and create ${NUMBER_OF_OPTIONS} distinct and detailed target audience profiles. For each, describe their demographics, reading habits, and what they look for in a book. Provide a rationale for why targeting this group is a good strategy.`,
         temperature: 0.4,
         output: {
             type: 'options',
@@ -116,7 +118,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Time to start building the narrative! A strong storyline is the backbone of any great book. Here are a few potential plot directions. Choose the one that you find most compelling.",
-        prompt: "Based on the format, genre, coreIdea, vibe of the book we are writing and current top selling trends in ebooks, generate 5 distinct and compelling options for the main storyline. Provide a rationale for eachpotential storylines. Each should have a clear beginning, middle, and end.",
+        prompt: `Based on the format, genre, coreIdea, vibe of the book we are writing and current top selling trends in ebooks, generate ${NUMBER_OF_OPTIONS} distinct and compelling options for the main storyline. Provide a rationale for eachpotential storylines. Each should have a clear beginning, middle, and end.`,
         temperature: 1.0,
         output: {
             type: 'options',
@@ -131,7 +133,7 @@ export const bookCreationWorkflow = [
         persona: 'STRATEGIST',
         userActions: ['select_option'],
         userInstruction: "Great stories are about great characters. Let's start developing the people who will inhabit your world. I've sketched out some ideas for your main characters. Which set of characters are you most excited to explore?",
-        prompt: "Readers connect with unforgettable characters. Based on our storyline, create three distinct sets of main characters. For each set, provide a 'title' that summarizes the character dynamic (e.g., 'The Reluctant Hero and the Power-Hungry Sorcerer'). In the 'rationale', provide a compelling, one-paragraph description covering both the protagonist and the antagonist, highlighting their core motivations and the central conflict between them. This description is crucial and should give a real sense of who these characters are.",
+        prompt: `Readers connect with unforgettable characters. Based on our storyline, create ${NUMBER_OF_OPTIONS} distinct sets of main characters. For each set, provide a 'title' that summarizes the character dynamic (e.g., 'The Reluctant Hero and the Power-Hungry Sorcerer'). In the 'rationale', provide a compelling, one-paragraph description covering both the protagonist and the antagonist, highlighting their core motivations and the central conflict between them. This description is crucial and should give a real sense of who these characters are.`,
         temperature: 1.0,
         output: {
             type: 'options',
@@ -218,7 +220,7 @@ export const bookCreationWorkflow = [
         persona: 'MARKETER',
         userActions: ['select_option'],
         userInstruction: "Let's get the word out! I've created some marketing materials to help you promote your book. Choose the option that you think will best capture your target audience's attention.",
-        prompt: "Let's get ready to launch! Based on an analysis of current bestsellers on platforms like Amazon Kindle, generate three options for marketing materials. Each should include a compelling back-cover blurb designed to convert browsers into buyers, and a list of high-traffic, low-competition keywords for discoverability.",
+        prompt: `Let's get ready to launch! Based on an analysis of current bestsellers on platforms like Amazon Kindle, generate ${NUMBER_OF_OPTIONS} options for marketing materials. Each should include a compelling back-cover blurb designed to convert browsers into buyers, and a list of high-traffic, low-competition keywords for discoverability.`,
         temperature: 0.8,
         output: {
             type: 'options',

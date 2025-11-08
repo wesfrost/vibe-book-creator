@@ -31,7 +31,7 @@ export const processStep = async (
             message: msg.parts.map(p => p.text || '').join('\n')
         })).slice(-10);
 
-    const fullContextObject = {
+    const fullContextObject: any = {
         bookSpec: bookState,
         chatHistory: conversationalHistory,
         currentTask: {
@@ -40,21 +40,28 @@ export const processStep = async (
         }
     };
     
+    const lastMessage = history[history.length - 1];
+    const isRefinement = lastMessage && lastMessage.role === 'user' && !lastMessage.isSystem;
+
+    if (isRefinement) {
+        const userRefinementRequest = lastMessage.parts[0].text || '';
+        fullContextObject.userRefinement = userRefinementRequest;
+        
+        if (stepId === 'draft_chapter') {
+            fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to the current chapter draft. Here is their request: "${userRefinementRequest}". Please rewrite the entire chapter, incorporating this feedback, and return it in the 'chapterContent' field of the JSON response. You must still return the correct 'chapterNumber'.`;
+        } else if (stepId === 'create_outline') {
+            fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to the current chapter outline. Here is their request: "${userRefinementRequest}". Please regenerate the entire outline, incorporating this feedback, and return it in the 'globalOutline' field of the JSON response.`;
+        } else {
+            fullContextObject.currentTask.instructions += `\n\nThe user has provided the following refinement: "${userRefinementRequest}". Please generate a new set of options based on this feedback and provide a personal response back to the user in the 'refinementMessage' field of the JSON response.`;
+        }
+    }
+
     if (stepId === 'draft_chapter' && bookState.draftingChapterIndex !== undefined) {
         const chapterToDraft = bookState.chapters[bookState.draftingChapterIndex];
         if (chapterToDraft) {
-            // @ts-ignore
             fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${bookState.draftingChapterIndex + 1}: ${chapterToDraft.title}**`;
         }
     }
-    
-    // Check if the last message was a user refinement and add a special instruction
-    const lastMessage = history[history.length - 1];
-    if (lastMessage && lastMessage.role === 'user' && !lastMessage.isSystem) {
-        // @ts-ignore
-        fullContextObject.currentTask.instructions += `\n\nThe user has provided the following refinement: "${lastMessage.parts[0].text}". Please generate a new set of options based on this feedback and include a friendly, conversational 'refinementMessage' acknowledging their input.`;
-    }
-
 
     let promptForAI = `You are an AI assistant helping an author create a book. Here is the full context for your current task. Review the entire object carefully before responding.\n\n${JSON.stringify(fullContextObject, null, 2)}`;
 
