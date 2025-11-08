@@ -113,7 +113,6 @@ export default function App() {
         if (isLoading) return;
 
         addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: false });
-        setDynamicOptions(null);
         setIsLoading(true);
 
         const currentStep = getCurrentStep();
@@ -132,34 +131,36 @@ export default function App() {
         if (isLoading) return;
 
         addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: true });
-        setDynamicOptions(null);
         setIsLoading(true);
 
         const currentStep = getCurrentStep();
         let tempBookState: BookState = { ...bookState };
         let nextStepId = currentStep.id;
-
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         
         let shouldAdvance = true;
+        
         if ((stepConfig?.id === 'draft_chapter' || stepConfig?.id === 'review_chapter' || stepConfig?.id === 'create_outline') && text.toLowerCase().includes('request')) {
             shouldAdvance = false;
             addMessage({ id: (Date.now() + 1).toString(), role: 'model', parts: [{ text: "Of course! What changes would you like to make?" }] });
+            setIsLoading(false);
+            return;
         }
-        else if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
-            const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
-            if (nextChapterIndex < bookState.chapters.length) {
+        
+        if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
+            const nextChapterIndex = (tempBookState.draftingChapterIndex ?? 0) + 1;
+            if (nextChapterIndex < tempBookState.chapters.length) {
                 shouldAdvance = false;
                 tempBookState = { ...tempBookState, draftingChapterIndex: nextChapterIndex };
-                setBookState(tempBookState);
             }
         }
         
         if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
             const key = stepConfig.output.key as keyof BookState;
             tempBookState = { ...tempBookState, [key]: text };
-            setBookState(tempBookState);
         }
+        
+        setBookState(tempBookState);
         
         if (shouldAdvance) {
             advanceStep();
