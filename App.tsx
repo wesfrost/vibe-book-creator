@@ -2,7 +2,7 @@
 import React from 'react';
 import { bookCreationWorkflow } from './config/bookCreationWorkflow';
 import { AI_MODELS, DEFAULT_AI_MODEL_ID } from './config/aiModels';
-import { processUserMessage } from './services/orchestrationService';
+import { processStep } from './services/orchestrationService';
 import ProgressTracker from './components/ProgressTracker';
 import ChatWindow from './components/ChatWindow';
 import MarkdownEditor from './components/MarkdownEditor';
@@ -12,7 +12,6 @@ import ComboBox from './components/ComboBox';
 import { useBookStore } from './store/useBookStore';
 import { ChatMessage, Option, BookState } from './types';
 import ViewToggle from './components/ViewToggle';
-import { ai } from './services/geminiService';
 
 type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
 
@@ -28,8 +27,6 @@ export default function App() {
         setDynamicOptions,
         advanceStep,
         getCurrentStep,
-        chatSession,
-        setChatSession,
     } = useBookStore();
 
     const [mainView, setMainView] = React.useState<MainView>('dashboard');
@@ -38,15 +35,6 @@ export default function App() {
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = React.useState(false);
     const headerMenuRef = React.useRef<HTMLDivElement>(null);
     const initRef = React.useRef(false);
-
-    // Initialize Chat Session
-    React.useEffect(() => {
-        if (!chatSession && !initRef.current) {
-            initRef.current = true;
-            const newChatSession = ai.chats.create({ model: selectedModelId });
-            setChatSession(newChatSession);
-        }
-    }, [chatSession, selectedModelId, setChatSession]);
 
     const handleApiResponse = (response: any, stepId: string) => {
         const stepConfig = bookCreationWorkflow.find(s => s.id === stepId);
@@ -138,7 +126,7 @@ export default function App() {
         handleGenericResponse({}, stepConfig?.userInstruction);
         setMainView('editor');
     }, [bookState, setBookState, getCurrentStep, addMessage]);
-
+    
     const handleChapterReviewResponse = React.useCallback((responseData: any) => {
         const chapterIndex = bookState.draftingChapterIndex;
         if (chapterIndex === undefined) return;
@@ -153,13 +141,12 @@ export default function App() {
         const newBookState: BookState = { ...bookState, chapters: newChapters };
         setBookState(newBookState);
         
-        // Use the feedback from the AI in the chat message
         handleGenericResponse({}, responseData.feedback);
         setMainView('editor');
     }, [bookState, setBookState]);
 
     const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
-        if (isLoading || !chatSession) return;
+        if (isLoading) return;
     
         const userMessage: ChatMessage = { 
             id: Date.now().toString(), 
@@ -213,7 +200,7 @@ export default function App() {
             }
         }
         
-        const response = await processUserMessage(chatSession, tempBookState, nextStepId, text);
+        const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
     
         if (response.success) {
             handleApiResponse(response.data, nextStepId);
@@ -222,10 +209,13 @@ export default function App() {
         }
     
         setIsLoading(false);
-    }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse, dynamicOptions, chatSession]);
+    }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse, dynamicOptions]);
 
     React.useEffect(() => {
-        if (messages.length > 0 || chatSession) return;
+        if (initRef.current) return;
+        initRef.current = true;
+
+        if (messages.length > 0) return;
 
         const firstStep = bookCreationWorkflow[0];
         if (firstStep && firstStep.output.type === 'options') {
@@ -236,7 +226,7 @@ export default function App() {
                 options: firstStep.output.options as Option[]
             });
         }
-    }, [chatSession]);
+    }, []);
 
     const handleContentChange = React.useCallback((chapterIndex: number, newContent: string) => {
         const newChapters = [...bookState.chapters];

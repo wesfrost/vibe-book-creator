@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { ChatMessage, ProgressPhase, BookState, Option } from '../types';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
-import { Chat } from '@google/genai';
 
 // --- Utility Functions ---
 
@@ -29,13 +28,11 @@ interface BookStore {
     bookState: BookState;
     isLoading: boolean;
     dynamicOptions: Option[] | null;
-    chatSession: Chat | null;
 
     addMessage: (message: ChatMessage) => void;
     setBookState: (bookState: BookState) => void;
     setIsLoading: (isLoading: boolean) => void;
     setDynamicOptions: (options: Option[] | null) => void;
-    setChatSession: (session: Chat) => void;
     
     getCurrentStep: () => { id: string, title: string };
     advanceStep: () => void;
@@ -50,14 +47,12 @@ export const useBookStore = create<BookStore>((set, get) => ({
     bookState: { chapters: [] },
     isLoading: false,
     dynamicOptions: null,
-    chatSession: null,
 
     // --- Actions ---
     addMessage: (message) => set(state => ({ messages: [...state.messages, message] })),
     setBookState: (bookState) => set({ bookState }),
     setIsLoading: (isLoading) => set({ isLoading }),
     setDynamicOptions: (options) => set({ dynamicOptions: options }),
-    setChatSession: (session) => set({ chatSession: session }),
     
     // --- Derived State ---
     getCurrentStep: () => {

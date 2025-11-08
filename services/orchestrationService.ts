@@ -1,9 +1,9 @@
 
-import { GeminiResponse, handleApiError } from './geminiService';
+import { callGemini, GeminiResponse, GeminiCallParams } from './geminiService';
 import * as Personas from './personas';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
-import { BookState } from '../types';
-import { Type, Chat } from "@google/genai";
+import { ChatMessage, BookState } from '../types';
+import { Type, Content, Schema } from "@google/genai";
 
 const personaMap: { [key: string]: string } = {
     ORCHESTRATOR: Personas.ORCHESTRATOR_PERSONA,
@@ -13,13 +13,14 @@ const personaMap: { [key: string]: string } = {
     MARKETER: Personas.MARKETER_PERSONA,
 };
 
-const buildMasterContext = (bookState: BookState, stepId: string): string => {
+const buildMasterContext = (bookState: BookState, stepId: string): Content[] => {
     const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
-    if (!stepConfig) return "";
+    if (!stepConfig) return [];
 
     const bookStateForPrompt = { ...bookState };
     // @ts-ignore
     bookStateForPrompt.chapters = bookState.chapters.map(({ title, summary, status }) => ({ title, summary, status }));
+
 
     let prompt = `
 # MASTER CONTEXT
@@ -45,41 +46,40 @@ ${JSON.stringify(bookStateForPrompt, null, 2)}
         prompt += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
     
-    return prompt;
+    return [{ role: "user", parts: [{ text: prompt }] }];
 };
 
-export const processUserMessage = async (
-    chatSession: Chat,
-    bookState: BookState,
+export const processStep = async (
+    history: ChatMessage[],
     stepId: string,
-    userInput: string
+    bookState: BookState,
+    modelId: string
 ): Promise<GeminiResponse<any>> => {
-    try {
-        const masterContext = buildMasterContext(bookState, stepId);
-        const fullPrompt = `${masterContext}\n\n# USER MESSAGE\n${userInput}`;
-        
-        const result = await chatSession.sendMessage(fullPrompt);
-        
-        if (!result.response) {
-            return { success: false, error: "The AI did not provide a response. This might be due to safety filters or other issues." };
-        }
-
-        const rawResponse = result.response.text().trim();
-        if (!rawResponse) {
-            return { success: false, error: "Received an empty response from the AI." };
-        }
-
-        try {
-            const parsedJson = JSON.parse(rawResponse);
-            return { success: true, data: parsedJson };
-        } catch (parseError: unknown) {
-            return { 
-                success: false, 
-                error: `Failed to parse JSON. Error: ${(parseError instanceof Error) ? parseError.message : String(parseError)}`,
-                rawResponse: rawResponse 
-            };
-        }
-    } catch (error) {
-        return handleApiError(error);
+    const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
+    if (!stepConfig) {
+        return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
     }
+
+    const masterContext = buildMasterContext(bookState, stepId);
+    
+    const chatHistory: Content[] = history
+        .filter(msg => !msg.isSystem)
+        .map(msg => ({
+            role: msg.sender === 'jim' ? 'model' : 'user',
+            parts: [{ text: msg.text }]
+        })).slice(-10);
+
+    const contents: Content[] = [...masterContext, ...chatHistory];
+
+    const geminiParams: GeminiCallParams = {
+        systemInstruction: personaMap[stepConfig.persona || 'ORCHESTRATOR'],
+        contents: contents,
+        modelId,
+    };
+
+    if (stepConfig.output.schema) {
+        geminiParams.responseSchema = stepConfig.output.schema as Schema;
+    }
+
+    return await callGemini(geminiParams);
 };
