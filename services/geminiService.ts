@@ -20,10 +20,6 @@ export interface GeminiCallParams {
     temperature?: number;
 }
 
-const getText = (response: GenerateContentResponse): string | undefined => {
-    return response.text?.();
-}
-
 export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiResponse<T>> => {
     const { systemInstruction, contents, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 } = params;
 
@@ -46,14 +42,11 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
             }
         });
         
-        if (!result.response) {
-            return { success: false, error: "The AI did not provide a response. This might be due to safety filters or other issues." };
-        }
-        
-        const rawResponse = getText(result.response)?.trim();
+        // Access the text property directly, which can be undefined
+        const rawResponse = result.text?.trim();
         
         if (!rawResponse) {
-             return { success: false, error: "Received an empty or undefined response from the API." };
+             return { success: false, error: "Received an empty or undefined response from the AI." };
         }
         
         try {
