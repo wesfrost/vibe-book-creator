@@ -8,7 +8,7 @@ import ChatWindow from './components/ChatWindow';
 import MarkdownEditor from './components/MarkdownEditor';
 import BookStateViewer from './components/BookStateViewer';
 import ChapterOutline from './components/ChapterOutline';
-import ComboBox from './components/ComboBox';
+import ChatInput from './components/ChatInput';
 import { useBookStore } from './store/useBookStore';
 import { ChatMessage, Option, BookState } from './types';
 import ViewToggle from './components/ViewToggle';
@@ -20,7 +20,6 @@ export default function App() {
         messages,
         bookState,
         isLoading,
-        dynamicOptions,
         addMessage,
         setBookState,
         setIsLoading,
@@ -55,14 +54,15 @@ export default function App() {
             description: `Click to ${action.replace(/_/g, ' ')}`,
         }));
         const finalOptions = responseData.options || optionsFromUserActions || [];
+        
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             role: 'model',
-            parts: [{ text: messageOverride || responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?" }],
+            parts: [{ text: messageOverride || responseData.refinementMessage || responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?" }],
             options: finalOptions,
             bestOption: responseData.bestOption,
         };
-        setDynamicOptions(finalOptions);
+        
         addMessage(jimResponse);
     };
 
@@ -132,7 +132,6 @@ export default function App() {
         if (isLoading) return;
 
         addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: true });
-        const currentDynamicOptions = [...(dynamicOptions || [])];
         setDynamicOptions(null);
         setIsLoading(true);
 
@@ -155,17 +154,6 @@ export default function App() {
         if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
             const key = stepConfig.output.key as keyof BookState;
             tempBookState = { ...tempBookState, [key]: text };
-
-            if (key === 'storyline' || key === 'characters') {
-                const selectedOption = currentDynamicOptions.find(opt => opt.title === text);
-                if (selectedOption && selectedOption.rationale) {
-                    if (key === 'storyline') {
-                        tempBookState.storylineRationale = selectedOption.rationale;
-                    } else if (key === 'characters') {
-                        tempBookState.charactersRationale = selectedOption.rationale;
-                    }
-                }
-            }
             setBookState(tempBookState);
         }
         
@@ -208,9 +196,6 @@ export default function App() {
         setBookState({ ...bookState, chapters: newChapters });
     }, [bookState, setBookState]);
     
-    const lastMessage = messages[messages.length - 1];
-    const currentStep = getCurrentStep();
-
     return (
         <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
             <header className="flex-shrink-0 flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800 shadow-sm">
@@ -246,15 +231,9 @@ export default function App() {
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
-                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={handleRefinement} />
-                            <div className="p-4 border-t border-gray-700 flex items-center gap-2">
-                                <ComboBox 
-                                    header={currentStep.title}
-                                    options={dynamicOptions || lastMessage?.options || []} 
-                                    onSendSelection={handleSelection} 
-                                    onSendRefinement={handleRefinement}
-                                    isLoading={isLoading} 
-                                />
+                            <ChatWindow messages={messages} isLoading={isLoading} onSendSelection={handleSelection} />
+                            <div className="p-4 border-t border-gray-700">
+                                <ChatInput onSendMessage={handleRefinement} isLoading={isLoading} />
                             </div>
                         </div>
                     ) : (

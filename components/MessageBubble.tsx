@@ -1,22 +1,21 @@
 
 import React from 'react';
-import { ChatMessage } from '../types';
+import { ChatMessage, Option } from '../types';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 interface MessageBubbleProps {
     message: ChatMessage;
-    onSendMessage: (text: string) => void;
+    onSendSelection: (text: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendSelection }) => {
     const isJim = message.role === 'model';
 
-    // Helper function to safely extract and combine text from the 'parts' array
     const getDisplayText = (msg: ChatMessage): string => {
         if (msg.parts && Array.isArray(msg.parts)) {
             return msg.parts.map(part => part.text || '').join('\n');
         }
-        return ''; // Return an empty string if no valid parts are found
+        return '';
     };
 
     const displayText = getDisplayText(message);
@@ -39,7 +38,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
         )
     }
 
-    // Do not render system messages in the chat window
     if (message.isSystem) {
         return null;
     }
@@ -53,6 +51,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
                         {renderMarkdown(displayText)}
                     </div>
                 </div>
+                {message.options && message.options.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2 ${isJim ? 'justify-start' : 'justify-end'}">
+                        {message.options.map((option, index) => (
+                            <button
+                                key={index}
+                                onClick={() => onSendSelection(option.title)}
+                                className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                            >
+                                {option.title}
+                            </button>
+                        ))}
+                    </div>
+                )}
                  {message.isAuto && (
                     <div className="text-xs text-gray-500 mt-1 italic">
                         🚀 Auto-pilot

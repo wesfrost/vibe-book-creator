@@ -16,7 +16,8 @@ const optionSchema = {
                 required: ['title', 'rationale']
             }
         },
-        bestOption: { type: Type.INTEGER, description: 'The 0-indexed number of the option you recommend the most.' }
+        bestOption: { type: Type.INTEGER, description: 'The 0-indexed number of the option you recommend the most.' },
+        refinementMessage: { type: Type.STRING, description: "A brief, conversational message acknowledging the user's refinement and introducing the new options." }
     }
 };
 

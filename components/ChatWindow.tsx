@@ -6,15 +6,13 @@ import MessageBubble from './MessageBubble';
 interface ChatWindowProps {
     messages: ChatMessage[];
     isLoading: boolean;
-    onSendMessage: (text: string) => void;
+    onSendSelection: (text: string) => void; // For button clicks
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMessage }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendSelection }) => {
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Manually scroll the chat window to the bottom
-        // This is more reliable than scrollIntoView and prevents the whole page from scrolling
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
@@ -24,7 +22,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMess
         <div ref={chatContainerRef} className="flex-1 p-6 overflow-y-auto bg-gray-900">
             <div className="max-w-4xl mx-auto space-y-6">
                 {messages.map((msg, index) => (
-                    <MessageBubble key={`${msg.id}-${index}`} message={msg} onSendMessage={onSendMessage} />
+                    <MessageBubble key={`${msg.id}-${index}`} message={msg} onSendSelection={onSendSelection} />
                 ))}
                 {isLoading && (
                     <div className="flex items-center space-x-2">
@@ -39,7 +37,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onSendMess
                         </div>
                     </div>
                 )}
-                {/* The empty div for scrolling to the end is no longer needed */}
             </div>
         </div>
     );

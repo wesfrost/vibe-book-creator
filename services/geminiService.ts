@@ -20,6 +20,18 @@ export interface GeminiCallParams {
     temperature?: number;
 }
 
+const cleanAndParseJson = <T>(rawResponse: string): T => {
+    const startIndex = rawResponse.indexOf('{');
+    const endIndex = rawResponse.lastIndexOf('}');
+    
+    if (startIndex === -1 || endIndex === -1) {
+        throw new Error("No valid JSON object found in the response.");
+    }
+    
+    const jsonString = rawResponse.substring(startIndex, endIndex + 1);
+    return JSON.parse(jsonString) as T;
+};
+
 export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiResponse<T>> => {
     const { systemInstruction, contents, responseSchema, modelId = DEFAULT_AI_MODEL_ID, temperature = 0.7 } = params;
 
@@ -50,16 +62,13 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
         }
         
         try {
-            const parsedJson = JSON.parse(rawResponse) as T;
+            const parsedJson = cleanAndParseJson<T>(rawResponse);
             console.log('%c✅ Parsed Response:', 'color: #34d399; font-weight: bold;', parsedJson);
             return { success: true, data: parsedJson };
         } catch (parseError: unknown) {
-            console.error('❌ JSON Parsing Error:', parseError);
-            return { 
-                success: false, 
-                error: `Failed to parse JSON. Error: ${(parseError instanceof Error) ? parseError.message : String(parseError)}`,
-                rawResponse: rawResponse 
-            };
+            console.log('⚠️ JSON Parsing failed, treating as a conversational text response.');
+            const fallbackData = { refinementMessage: rawResponse, options: [] } as T;
+            return { success: true, data: fallbackData };
         }
 
     } catch (error: unknown) {
