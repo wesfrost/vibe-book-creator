@@ -39,62 +39,38 @@ export default function App() {
     const handleApiResponse = (response: any, stepId: string) => {
         const stepConfig = bookCreationWorkflow.find(s => s.id === stepId);
         switch (stepConfig?.output.type) {
-            case 'outline':
-                handleOutlineResponse(response);
-                break;
-            case 'chapter_draft':
-                handleChapterDraftResponse(response);
-                break;
-            case 'chapter_review':
-                handleChapterReviewResponse(response);
-                break;
-            case 'options':
-                handleGenericResponse(response);
-                break;
-            default:
-                addMessage({ id: 'error', sender: 'jim', text: `I received an unexpected response from the AI. Let's try that again.` });
-                break;
+            case 'outline': handleOutlineResponse(response); break;
+            case 'chapter_draft': handleChapterDraftResponse(response); break;
+            case 'chapter_review': handleChapterReviewResponse(response); break;
+            case 'options': handleGenericResponse(response); break;
+            default: addMessage({ id: 'error', role: 'model', parts: [{ text: `I received an unexpected response from the AI. Let's try that again.` }] }); break;
         }
     };
 
-    const handleGenericResponse = (responseData: any) => {
+    const handleGenericResponse = (responseData: any, messageOverride?: string) => {
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
-    
         const optionsFromUserActions = stepConfig?.userActions?.map(action => ({
             title: action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             description: `Click to ${action.replace(/_/g, ' ')}`,
         }));
-    
         const finalOptions = responseData.options || optionsFromUserActions || [];
-    
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
-            sender: 'jim',
-            text: responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?",
+            role: 'model',
+            parts: [{ text: messageOverride || responseData.message || stepConfig?.userInstruction || "Here are some options. What do you think?" }],
             options: finalOptions,
             bestOption: responseData.bestOption,
         };
-    
         setDynamicOptions(finalOptions);
         addMessage(jimResponse);
     };
 
     const handleOutlineResponse = React.useCallback((responseData: any) => {
         const chaptersFromOutline = responseData.globalOutline.map((item: any) => ({
-            title: item.title,
-            summary: item.summary,
-            content: '', 
-            status: 'outlined'
+            title: item.title, summary: item.summary, content: '', status: 'outlined'
         }));
-    
-        const newBookState: BookState = {
-            ...bookState,
-            globalOutline: responseData.globalOutline,
-            chapters: chaptersFromOutline,
-            draftingChapterIndex: 0,
-        };
-    
+        const newBookState: BookState = { ...bookState, globalOutline: responseData.globalOutline, chapters: chaptersFromOutline, draftingChapterIndex: 0 };
         setBookState(newBookState);
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
@@ -104,23 +80,18 @@ export default function App() {
 
     const handleChapterDraftResponse = React.useCallback((responseData: any) => {
         if (typeof responseData.chapterNumber !== 'number') {
-            addMessage({ id: 'error', sender: 'jim', text: "There was an issue identifying the chapter to update. Let's try again." });
+            addMessage({ id: 'error', role: 'model', parts: [{ text: "There was an issue identifying the chapter to update. Let's try again." }] });
             return;
         }
-
         const chapterIndex = responseData.chapterNumber - 1;
-
         if (chapterIndex < 0 || chapterIndex >= bookState.chapters.length) {
-            addMessage({ id: 'error', sender: 'jim', text: "I seem to have lost my place! Could you tell me which chapter we were working on?" });
+            addMessage({ id: 'error', role: 'model', parts: [{ text: "I seem to have lost my place! Could you tell me which chapter we were working on?" }] });
             return;
         }
-
         const newChapters = [...bookState.chapters];
         newChapters[chapterIndex] = { ...newChapters[chapterIndex], content: responseData.chapterContent, status: 'drafted' };
-        
         const newBookState: BookState = { ...bookState, chapters: newChapters };
         setBookState(newBookState);
-        
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         handleGenericResponse({}, stepConfig?.userInstruction);
@@ -130,74 +101,77 @@ export default function App() {
     const handleChapterReviewResponse = React.useCallback((responseData: any) => {
         const chapterIndex = bookState.draftingChapterIndex;
         if (chapterIndex === undefined) return;
-
         const newChapters = [...bookState.chapters];
-        newChapters[chapterIndex] = { 
-            ...newChapters[chapterIndex], 
-            content: responseData.editedContent, 
-            status: 'reviewed' 
-        };
-        
+        newChapters[chapterIndex] = { ...newChapters[chapterIndex], content: responseData.editedContent, status: 'reviewed' };
         const newBookState: BookState = { ...bookState, chapters: newChapters };
         setBookState(newBookState);
-        
         handleGenericResponse({}, responseData.feedback);
         setMainView('editor');
     }, [bookState, setBookState]);
 
-    const handleSendMessage = React.useCallback(async (text: string, isSelection: boolean = false) => {
+    const handleRefinement = async (text: string) => {
         if (isLoading) return;
-    
-        const userMessage: ChatMessage = { 
-            id: Date.now().toString(), 
-            sender: 'user', 
-            text,
-            isSystem: isSelection
-        };
-        addMessage(userMessage);
-        
+
+        addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: false });
+        setDynamicOptions(null);
+        setIsLoading(true);
+
+        const currentStep = getCurrentStep();
+        const response = await processStep(useBookStore.getState().messages, currentStep.id, bookState, selectedModelId);
+
+        if (response.success) {
+            handleApiResponse(response.data, currentStep.id);
+        } else {
+            addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
+        }
+
+        setIsLoading(false);
+    };
+
+    const handleSelection = async (text: string) => {
+        if (isLoading) return;
+
+        addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: true });
         const currentDynamicOptions = [...(dynamicOptions || [])];
         setDynamicOptions(null);
         setIsLoading(true);
-    
+
         const currentStep = getCurrentStep();
         let tempBookState: BookState = { ...bookState };
         let nextStepId = currentStep.id;
-    
-        if (isSelection) {
-            const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
-            
-            let shouldAdvance = true;
-            if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
-                const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
-                if (nextChapterIndex < bookState.chapters.length) {
-                    shouldAdvance = false;
-                    tempBookState = { ...tempBookState, draftingChapterIndex: nextChapterIndex };
-                    setBookState(tempBookState);
-                }
-            }
-            
-            if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
-                const key = stepConfig.output.key as keyof BookState;
-                tempBookState = { ...tempBookState, [key]: text };
-    
-                if (key === 'storyline' || key === 'characters') {
-                    const selectedOption = currentDynamicOptions.find(opt => opt.title === text);
-                    if (selectedOption && selectedOption.rationale) {
-                        if (key === 'storyline') {
-                            tempBookState.storylineRationale = selectedOption.rationale;
-                        } else if (key === 'characters') {
-                            tempBookState.charactersRationale = selectedOption.rationale;
-                        }
-                    }
-                }
+
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+        
+        let shouldAdvance = true;
+        if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
+            const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
+            if (nextChapterIndex < bookState.chapters.length) {
+                shouldAdvance = false;
+                tempBookState = { ...tempBookState, draftingChapterIndex: nextChapterIndex };
                 setBookState(tempBookState);
             }
-            
-            if (shouldAdvance) {
-                advanceStep();
-                nextStepId = useBookStore.getState().getCurrentStep().id;
+        }
+        
+        if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
+            const key = stepConfig.output.key as keyof BookState;
+            tempBookState = { ...tempBookState, [key]: text };
+
+            if (key === 'storyline' || key === 'characters') {
+                const selectedOption = currentDynamicOptions.find(opt => opt.title === text);
+                if (selectedOption && selectedOption.rationale) {
+                    if (key === 'storyline') {
+                        tempBookState.storylineRationale = selectedOption.rationale;
+                    } else if (key === 'characters') {
+                        tempBookState.charactersRationale = selectedOption.rationale;
+                    }
+                }
             }
+            setBookState(tempBookState);
+        }
+        
+        if (shouldAdvance) {
+            advanceStep();
+            nextStepId = useBookStore.getState().getCurrentStep().id;
         }
         
         const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
@@ -205,26 +179,26 @@ export default function App() {
         if (response.success) {
             handleApiResponse(response.data, nextStepId);
         } else {
-            addMessage({ id: 'error', sender: 'jim', text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` });
+            addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
         }
     
         setIsLoading(false);
-    }, [isLoading, bookState, selectedModelId, addMessage, setDynamicOptions, setIsLoading, setBookState, advanceStep, getCurrentStep, handleOutlineResponse, handleChapterDraftResponse, dynamicOptions]);
+    };
 
     React.useEffect(() => {
         if (initRef.current) return;
         initRef.current = true;
 
-        if (messages.length > 0) return;
-
-        const firstStep = bookCreationWorkflow[0];
-        if (firstStep && firstStep.output.type === 'options') {
-            addMessage({
-                id: 'jim-intro',
-                sender: 'jim',
-                text: firstStep.userInstruction || "Hello there, amazing author! 🌟 I'm **Book AI Jim**. To get started, what kind of book are we creating today?",
-                options: firstStep.output.options as Option[]
-            });
+        if (messages.length === 0) {
+            const firstStep = bookCreationWorkflow[0];
+            if (firstStep && firstStep.output.type === 'options') {
+                addMessage({
+                    id: 'jim-intro',
+                    role: 'model',
+                    parts: [{ text: firstStep.userInstruction || "Hello there! What kind of book are we creating today?" }],
+                    options: firstStep.output.options as Option[]
+                });
+            }
         }
     }, []);
 
@@ -272,12 +246,13 @@ export default function App() {
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
-                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={(text: string) => handleSendMessage(text, false)} />
+                            <ChatWindow messages={messages} isLoading={isLoading} onSendMessage={handleRefinement} />
                             <div className="p-4 border-t border-gray-700 flex items-center gap-2">
                                 <ComboBox 
                                     header={currentStep.title}
                                     options={dynamicOptions || lastMessage?.options || []} 
-                                    onSendMessage={(text: string) => handleSendMessage(text, true)} 
+                                    onSendSelection={handleSelection} 
+                                    onSendRefinement={handleRefinement}
                                     isLoading={isLoading} 
                                 />
                             </div>

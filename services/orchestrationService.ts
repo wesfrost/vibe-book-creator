@@ -13,14 +13,20 @@ const personaMap: { [key: string]: string } = {
     MARKETER: Personas.MARKETER_PERSONA,
 };
 
-const buildMasterContext = (bookState: BookState, stepId: string): Content[] => {
+export const processStep = async (
+    history: ChatMessage[],
+    stepId: string,
+    bookState: BookState,
+    modelId: string
+): Promise<GeminiResponse<any>> => {
     const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
-    if (!stepConfig) return [];
+    if (!stepConfig) {
+        return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
+    }
 
     const bookStateForPrompt = { ...bookState };
     // @ts-ignore
     bookStateForPrompt.chapters = bookState.chapters.map(({ title, summary, status }) => ({ title, summary, status }));
-
 
     let prompt = `
 # MASTER CONTEXT
@@ -45,36 +51,22 @@ ${JSON.stringify(bookStateForPrompt, null, 2)}
     if (stepConfig.output.schema && stepConfig.output.schema.type === Type.OBJECT) {
         prompt += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
-    
-    return [{ role: "user", parts: [{ text: prompt }] }];
-};
 
-export const processStep = async (
-    history: ChatMessage[],
-    stepId: string,
-    bookState: BookState,
-    modelId: string
-): Promise<GeminiResponse<any>> => {
-    const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
-    if (!stepConfig) {
-        return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
-    }
-
-    const masterContext = buildMasterContext(bookState, stepId);
+    const masterContext: Content = { role: "user", parts: [{ text: prompt }] };
     
     const chatHistory: Content[] = history
-        .filter(msg => !msg.isSystem)
         .map(msg => ({
-            role: msg.sender === 'jim' ? 'model' : 'user',
-            parts: [{ text: msg.text }]
+            role: msg.role,
+            parts: msg.parts
         })).slice(-10);
 
-    const contents: Content[] = [...masterContext, ...chatHistory];
+    const contents: Content[] = [masterContext, ...chatHistory];
 
     const geminiParams: GeminiCallParams = {
         systemInstruction: personaMap[stepConfig.persona || 'ORCHESTRATOR'],
         contents: contents,
         modelId,
+        temperature: stepConfig.temperature // Pass the temperature from the workflow
     };
 
     if (stepConfig.output.schema) {

@@ -1,4 +1,6 @@
 
+import { Part } from "@google/genai";
+
 export interface Option {
     title: string;
     description?: string;
@@ -7,16 +9,13 @@ export interface Option {
 
 export interface ChatMessage {
     id: string;
-    sender: 'user' | 'jim';
-    text: string;
+    role: 'user' | 'model';
+    parts: Part[];
     options?: Option[];
     bestOption?: number;
     isAnalysis?: boolean;
     isAuto?: boolean;
-    isSystem?: boolean; // Add system message flag
-    postChapterMessage?: string;
-    chapterTitle?: string;
-    chapterContent?: string;
+    isSystem?: boolean; // This remains for our internal logic
 }
 
 export interface ProgressStep {
@@ -43,14 +42,11 @@ export interface BookState {
     title?: string;
     coreIdea?: string;
     vibe?: string;
-    writingStyle?: string;
     audience?: string;
     storyline?: string;
     storylineRationale?: string;
-    protagonist?: any;
-    antagonist?: any;
-    supportingCharacters?: any[];
-    numberOfChapters?: number;
+    characters?: any;
+    charactersRationale?: string;
     globalOutline?: any[];
     chapters: Chapter[];
     marketing?: any;

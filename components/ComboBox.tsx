@@ -3,26 +3,29 @@ import React, { useState, useEffect, useRef } from 'react';
 
 interface ComboBoxProps {
     options: { title: string; description?: string; rationale?: string }[];
-    onSendMessage: (text: string, isRerun?: boolean) => void;
+    onSendSelection: (text: string) => void;
+    onSendRefinement: (text: string) => void;
     isLoading: boolean;
     header?: string;
 }
 
-const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendMessage, isLoading, header }) => {
+const ComboBox: React.FC<ComboBoxProps> = ({ options, onSendSelection, onSendRefinement, isLoading, header }) => {
     const [inputValue, setInputValue] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const handleSelect = (title: string, isRerun: boolean = false) => {
-        onSendMessage(title, isRerun);
+    // This handles when a user clicks a generated option
+    const handleSelect = (title: string) => {
+        onSendSelection(title);
         setIsOpen(false);
         setInputValue('');
     };
 
+    // This handles when a user types and hits enter
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (inputValue.trim() && !isLoading) {
-            onSendMessage(inputValue);
+            onSendRefinement(inputValue);
             setInputValue('');
         }
     };

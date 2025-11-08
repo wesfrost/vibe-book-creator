@@ -9,18 +9,14 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage }) => {
-    const isJim = message.sender === 'jim';
+    const isJim = message.role === 'model';
 
-    // Helper function to safely extract display text from various message structures
+    // Helper function to safely extract and combine text from the 'parts' array
     const getDisplayText = (msg: ChatMessage): string => {
-        if (typeof msg.text === 'string') {
-            return msg.text;
+        if (msg.parts && Array.isArray(msg.parts)) {
+            return msg.parts.map(part => part.text || '').join('\n');
         }
-        // Handle the special structure for drafted chapters
-        if (msg.postChapterMessage) {
-            return `${msg.postChapterMessage}\n\n**${msg.chapterTitle}**\n\n${msg.chapterContent}`;
-        }
-        return ''; // Return an empty string if no valid text is found
+        return ''; // Return an empty string if no valid parts are found
     };
 
     const displayText = getDisplayText(message);
@@ -41,6 +37,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSendMessage })
                 </div>
             </div>
         )
+    }
+
+    // Do not render system messages in the chat window
+    if (message.isSystem) {
+        return null;
     }
 
     return (

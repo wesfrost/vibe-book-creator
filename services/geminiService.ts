@@ -28,10 +28,11 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
     console.log('%cPersona:', 'color: #a78bfa; font-weight: bold;', systemInstruction.substring(0, 100) + '...');
     console.log('%cContents:', 'color: #a78bfa; font-weight: bold;', contents);
     console.log('%cExpected Schema:', 'color: #a78bfa; font-weight: bold;', responseSchema);
+    console.log('%cTemperature:', 'color: #a78bfa; font-weight: bold;', temperature);
     console.groupEnd();
 
     try {
-        const result = await ai.models.generateContent({
+        const result: GenerateContentResponse = await ai.models.generateContent({
             model: modelId,
             contents: contents,
             config: {
@@ -42,11 +43,10 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
             }
         });
         
-        // Access the text property directly, which can be undefined
         const rawResponse = result.text?.trim();
         
         if (!rawResponse) {
-             return { success: false, error: "Received an empty or undefined response from the AI." };
+             return { success: false, error: "Received an empty or undefined response from the AI. This might be due to safety filters or other issues." };
         }
         
         try {
