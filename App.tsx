@@ -24,7 +24,8 @@ export default function App() {
         setBookState,
         setIsLoading,
         setDynamicOptions,
-        advanceStep,
+        markStepAsComplete,
+        advanceToNextStep,
         getCurrentStep,
     } = useBookStore();
 
@@ -129,52 +130,70 @@ export default function App() {
 
     const handleSelection = async (text: string) => {
         if (isLoading) return;
-
+    
         addMessage({ id: Date.now().toString(), role: 'user', parts: [{ text }], isSystem: true });
         setIsLoading(true);
-
+    
         const currentStep = getCurrentStep();
-        let tempBookState: BookState = { ...bookState };
-        let nextStepId = currentStep.id;
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
-        
-        let shouldAdvance = true;
-        
-        if ((stepConfig?.id === 'draft_chapter' || stepConfig?.id === 'review_chapter' || stepConfig?.id === 'create_outline') && text.toLowerCase().includes('request')) {
-            shouldAdvance = false;
+    
+        // Handle "Request Changes" first and exit
+        if (stepConfig?.userActions?.includes('request_changes') && text.toLowerCase().includes('request')) {
             addMessage({ id: (Date.now() + 1).toString(), role: 'model', parts: [{ text: "Of course! What changes would you like to make?" }] });
             setIsLoading(false);
             return;
         }
-        
+    
+        // Handle the chapter drafting loop specifically
         if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
-            const nextChapterIndex = (tempBookState.draftingChapterIndex ?? 0) + 1;
-            if (nextChapterIndex < tempBookState.chapters.length) {
-                shouldAdvance = false;
-                tempBookState = { ...tempBookState, draftingChapterIndex: nextChapterIndex };
+            markStepAsComplete();
+            const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
+            
+            if (nextChapterIndex < bookState.chapters.length) {
+                // We are still drafting, so don't advance the workflow step
+                const newBookState: BookState = { ...bookState, draftingChapterIndex: nextChapterIndex };
+                setBookState(newBookState);
+                
+                const response = await processStep(useBookStore.getState().messages, currentStep.id, newBookState, selectedModelId);
+                if (response.success) {
+                    handleApiResponse(response.data, currentStep.id);
+                } else {
+                    addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
+                }
+            } else {
+                // All chapters are drafted, so advance to the next step in the workflow
+                advanceToNextStep();
+                const nextStepId = useBookStore.getState().getCurrentStep().id;
+                const response = await processStep(useBookStore.getState().messages, nextStepId, bookState, selectedModelId);
+                if (response.success) {
+                    handleApiResponse(response.data, nextStepId);
+                } else {
+                    addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
+                }
             }
+            setIsLoading(false);
+            return;
         }
-        
+    
+        // Handle all other selections
+        let tempBookState: BookState = { ...bookState };
         if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
             const key = stepConfig.output.key as keyof BookState;
             tempBookState = { ...tempBookState, [key]: text };
+            setBookState(tempBookState);
         }
-        
-        setBookState(tempBookState);
-        
-        if (shouldAdvance) {
-            advanceStep();
-            nextStepId = useBookStore.getState().getCurrentStep().id;
-        }
+    
+        markStepAsComplete();
+        advanceToNextStep();
+        const nextStepId = useBookStore.getState().getCurrentStep().id;
         
         const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
-    
         if (response.success) {
             handleApiResponse(response.data, nextStepId);
         } else {
             addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
         }
-    
+        
         setIsLoading(false);
     };
 

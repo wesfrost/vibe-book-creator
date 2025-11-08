@@ -35,7 +35,8 @@ interface BookStore {
     setDynamicOptions: (options: Option[] | null) => void;
     
     getCurrentStep: () => { id: string, title: string };
-    advanceStep: () => void;
+    markStepAsComplete: () => void;
+    advanceToNextStep: () => void;
 }
 
 export const useBookStore = create<BookStore>((set, get) => ({
@@ -61,7 +62,7 @@ export const useBookStore = create<BookStore>((set, get) => ({
     },
 
     // --- Complex Actions ---
-    advanceStep: () => {
+    markStepAsComplete: () => {
         const { progress, currentStepIndex, flatSteps } = get();
         const currentStepId = flatSteps[currentStepIndex].id;
         
@@ -72,11 +73,14 @@ export const useBookStore = create<BookStore>((set, get) => ({
             )
         }));
         
+        set({ progress: newProgress });
+    },
+
+    advanceToNextStep: () => {
+        const { flatSteps, currentStepIndex } = get();
         const nextStepIndex = currentStepIndex + 1;
         if (nextStepIndex < flatSteps.length) {
-            set({ progress: newProgress, currentStepIndex: nextStepIndex });
-        } else {
-            set({ progress: newProgress }); 
+            set({ currentStepIndex: nextStepIndex });
         }
     },
 }));
