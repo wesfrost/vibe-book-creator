@@ -148,7 +148,7 @@ export const bookCreationWorkflow = [
         persona: 'WRITER',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "Here's the chapter-by-chapter outline for your book. This is our roadmap. You can either approve it as is, or request specific changes. Let me know what you think!",
-        prompt: "Let's build the skeleton of our story, keeping the pacing of a bestseller in mind. Create a detailed, chapter-by-chapter outline. Each entry should summarize key events, plot twists, and character developments, ensuring a compelling narrative arc that will keep readers hooked from beginning to end. Reference common story structures like the three-act structure if applicable.",
+        prompt: "Let's build the skeleton of our story. Create a detailed, chapter-by-chapter outline. Each entry must have a 'chapterNumber', 'title', and 'summary'.",
         temperature: 0.7,
         output: {
             type: 'outline',
@@ -160,11 +160,11 @@ export const bookCreationWorkflow = [
                         items: {
                             type: Type.OBJECT,
                             properties: {
-                                chapter: { type: Type.INTEGER },
+                                chapterNumber: { type: Type.INTEGER },
                                 title: { type: Type.STRING },
                                 summary: { type: Type.STRING }
                             },
-                            required: ['chapter', 'title', 'summary']
+                            required: ['chapterNumber', 'title', 'summary']
                         }
                     }
                 }
@@ -178,7 +178,7 @@ export const bookCreationWorkflow = [
         persona: 'WRITER',
         userActions: ['request_changes', 'approve_and_continue'],
         userInstruction: "The first draft of the chapter is ready! Read it over and see how it feels. You can ask for revisions or, if you're happy with it, we can move on to the next step.",
-        prompt: "Time to write. Draft the next chapter based on our outline. Capture the book's voice and style, focusing on clear, compelling prose that's easy to read. Use techniques common in bestselling novels like cliffhangers, strong hooks, and vivid descriptions to keep the reader engaged. Your JSON response must include the 'chapterNumber'.",
+        prompt: "Review the `bookSpec.chapters` array. Find the first chapter that has a `status` of 'outlined', and draft the content for that chapter. Your JSON response must include the correct `chapterNumber` for the chapter you have just drafted.",
         temperature: 1.0,
         output: {
             type: 'chapter_draft',

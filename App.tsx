@@ -69,9 +69,13 @@ export default function App() {
 
     const handleOutlineResponse = React.useCallback((responseData: any) => {
         const chaptersFromOutline = responseData.globalOutline.map((item: any) => ({
-            title: item.title, summary: item.summary, content: '', status: 'outlined'
+            chapterNumber: item.chapterNumber,
+            title: item.title, 
+            summary: item.summary, 
+            content: '', 
+            status: 'outlined'
         }));
-        const newBookState: BookState = { ...bookState, globalOutline: responseData.globalOutline, chapters: chaptersFromOutline, draftingChapterIndex: 0 };
+        const newBookState: BookState = { ...bookState, globalOutline: responseData.globalOutline, chapters: chaptersFromOutline };
         setBookState(newBookState);
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
@@ -84,8 +88,8 @@ export default function App() {
             addMessage({ id: 'error', role: 'model', parts: [{ text: "There was an issue identifying the chapter to update. Let's try again." }] });
             return;
         }
-        const chapterIndex = responseData.chapterNumber - 1;
-        if (chapterIndex < 0 || chapterIndex >= bookState.chapters.length) {
+        const chapterIndex = bookState.chapters.findIndex(c => c.chapterNumber === responseData.chapterNumber);
+        if (chapterIndex === -1) {
             addMessage({ id: 'error', role: 'model', parts: [{ text: "I seem to have lost my place! Could you tell me which chapter we were working on?" }] });
             return;
         }
@@ -100,8 +104,8 @@ export default function App() {
     }, [bookState, setBookState, getCurrentStep, addMessage]);
     
     const handleChapterReviewResponse = React.useCallback((responseData: any) => {
-        const chapterIndex = bookState.draftingChapterIndex;
-        if (chapterIndex === undefined) return;
+        const chapterIndex = bookState.chapters.findIndex(c => c.status === 'drafted');
+        if (chapterIndex === -1) return;
         const newChapters = [...bookState.chapters];
         newChapters[chapterIndex] = { ...newChapters[chapterIndex], content: responseData.editedContent, status: 'reviewed' };
         const newBookState: BookState = { ...bookState, chapters: newChapters };
@@ -137,63 +141,45 @@ export default function App() {
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
     
-        // Handle "Request Changes" first and exit
+        markStepAsComplete();
+    
         if (stepConfig?.userActions?.includes('request_changes') && text.toLowerCase().includes('request')) {
             addMessage({ id: (Date.now() + 1).toString(), role: 'model', parts: [{ text: "Of course! What changes would you like to make?" }] });
             setIsLoading(false);
             return;
         }
     
-        // Handle the chapter drafting loop specifically
+        let tempBookState = { ...bookState };
+        let nextStepId = currentStep.id;
+        let shouldAdvance = true;
+    
         if (stepConfig?.id === 'draft_chapter' && text.toLowerCase().includes('approve')) {
-            markStepAsComplete();
-            const nextChapterIndex = (bookState.draftingChapterIndex ?? 0) + 1;
-            
-            if (nextChapterIndex < bookState.chapters.length) {
-                // We are still drafting, so don't advance the workflow step
-                const newBookState: BookState = { ...bookState, draftingChapterIndex: nextChapterIndex };
-                setBookState(newBookState);
-                
-                const response = await processStep(useBookStore.getState().messages, currentStep.id, newBookState, selectedModelId);
-                if (response.success) {
-                    handleApiResponse(response.data, currentStep.id);
-                } else {
-                    addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
-                }
-            } else {
-                // All chapters are drafted, so advance to the next step in the workflow
-                advanceToNextStep();
-                const nextStepId = useBookStore.getState().getCurrentStep().id;
-                const response = await processStep(useBookStore.getState().messages, nextStepId, bookState, selectedModelId);
-                if (response.success) {
-                    handleApiResponse(response.data, nextStepId);
-                } else {
-                    addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
-                }
+            const nextChapterIndex = (tempBookState.chapters.findIndex(c => c.status === 'outlined') ?? -1);
+            if (nextChapterIndex !== -1) {
+                shouldAdvance = false;
             }
-            setIsLoading(false);
-            return;
         }
     
-        // Handle all other selections
-        let tempBookState: BookState = { ...bookState };
         if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
             const key = stepConfig.output.key as keyof BookState;
             tempBookState = { ...tempBookState, [key]: text };
-            setBookState(tempBookState);
         }
     
-        markStepAsComplete();
-        advanceToNextStep();
-        const nextStepId = useBookStore.getState().getCurrentStep().id;
-        
+        setBookState(tempBookState);
+    
+        if (shouldAdvance) {
+            advanceToNextStep();
+            nextStepId = useBookStore.getState().getCurrentStep().id;
+        }
+    
         const response = await processStep(useBookStore.getState().messages, nextStepId, tempBookState, selectedModelId);
+    
         if (response.success) {
             handleApiResponse(response.data, nextStepId);
         } else {
             addMessage({ id: 'error', role: 'model', parts: [{ text: `Oh no, a little glitch in the matrix! Here's the technical mumbo-jumbo: ${response.error}` }] });
         }
-        
+    
         setIsLoading(false);
     };
 

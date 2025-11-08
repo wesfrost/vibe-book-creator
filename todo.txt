@@ -14,3 +14,7 @@ How many chapters
 We can "ground" our ai with a "search server to look for information" each source DB is a mini expert.
 BraveSearch API for dev. - free tier free credits each month
 microsoft search is also cheaper than google
+
+
+new ideas:
+app to generate a custom date

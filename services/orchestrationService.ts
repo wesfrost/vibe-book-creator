@@ -59,7 +59,7 @@ export const processStep = async (
     if (stepId === 'draft_chapter' && bookState.draftingChapterIndex !== undefined) {
         const chapterToDraft = bookState.chapters[bookState.draftingChapterIndex];
         if (chapterToDraft) {
-            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${bookState.draftingChapterIndex + 1}: ${chapterToDraft.title}**`;
+            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${bookState.draftingChapterIndex}: ${chapterToDraft.title}**`;
         }
     }
 

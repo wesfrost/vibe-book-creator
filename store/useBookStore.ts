@@ -45,7 +45,10 @@ export const useBookStore = create<BookStore>((set, get) => ({
     progress: transformWorkflowToProgress(bookCreationWorkflow),
     flatSteps: getFlatSteps(bookCreationWorkflow),
     currentStepIndex: 0,
-    bookState: { chapters: [] },
+    bookState: { 
+        chapters: [],
+        lastCompletedActionId: undefined,
+    },
     isLoading: false,
     dynamicOptions: null,
 

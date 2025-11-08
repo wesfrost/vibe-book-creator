@@ -15,7 +15,7 @@ export interface ChatMessage {
     bestOption?: number;
     isAnalysis?: boolean;
     isAuto?: boolean;
-    isSystem?: boolean; // This remains for our internal logic
+    isSystem?: boolean;
 }
 
 export interface ProgressStep {
@@ -30,6 +30,7 @@ export interface ProgressPhase {
 }
 
 export interface Chapter {
+    chapterNumber: number;
     title: string;
     summary?: string; 
     content: string;
@@ -50,5 +51,5 @@ export interface BookState {
     globalOutline?: any[];
     chapters: Chapter[];
     marketing?: any;
-    draftingChapterIndex?: number;
+    lastCompletedActionId?: string;
 }
