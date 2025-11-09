@@ -19,19 +19,7 @@ export const processStep = async (
     bookState: BookState,
     modelId: string
 ): Promise<GeminiResponse<any>> => {
-    let currentStepId = stepId;
-    let tempBookState = { ...bookState };
-
-    if (currentStepId === 'edit_chapter_loop') {
-        const nextChapterToEditIndex = tempBookState.chapters.findIndex(chapter => chapter.status === 'drafted');
-        if (nextChapterToEditIndex !== -1) {
-            tempBookState.editingChapterIndex = nextChapterToEditIndex;
-        } else {
-            currentStepId = 'generate_marketing_materials';
-        }
-    }
-
-    const stepConfig = bookCreationWorkflow.find(step => step.id === currentStepId);
+    const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
     if (!stepConfig) {
         return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
     }
@@ -44,7 +32,7 @@ export const processStep = async (
         })).slice(-10);
 
     const fullContextObject: any = {
-        bookSpec: tempBookState,
+        bookSpec: bookState,
         chatHistory: conversationalHistory,
         currentTask: {
             title: stepConfig.title,
@@ -59,43 +47,37 @@ export const processStep = async (
         const userRefinementRequest = lastMessage.parts[0].text || '';
         fullContextObject.userRefinement = userRefinementRequest;
 
-        if (currentStepId === 'draft_chapter') {
-            const chapterIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
-            if (chapterIndex !== -1) {
-                fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to Chapter ${tempBookState.chapters[chapterIndex].chapterNumber}. Here is their request: "${userRefinementRequest}". Please rewrite the entire chapter, incorporating this feedback, and return it in the 'chapterContent' field of the JSON response. You must still return the correct 'chapterNumber'.`;
-            }
-        } else if (currentStepId === 'edit_chapter_loop') {
-            const chapterIndex = tempBookState.editingChapterIndex;
+        if (stepId === 'draft_chapter' || stepId === 'edit_chapter_loop') {
+            const chapterIndex = stepId === 'draft_chapter'
+                ? bookState.chapters.findIndex(c => c.status === 'outlined')
+                : bookState.editingChapterIndex;
+
             if (chapterIndex !== undefined && chapterIndex !== -1) {
-                const chapterToEdit = tempBookState.chapters[chapterIndex];
-                fullContextObject.currentTask.instructions = `The user wants to edit Chapter ${chapterToEdit.chapterNumber}: "${chapterToEdit.title}". They have chosen the following focus: "${userRefinementRequest}". Please rewrite the entire chapter with this focus and return the updated content.`;
+                fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to Chapter ${bookState.chapters[chapterIndex].chapterNumber}. Here is their request: "${userRefinementRequest}". Please rewrite the entire chapter, incorporating this feedback, and return it in the 'chapterContent' field of the JSON response. You must still return the correct 'chapterNumber'.`;
             }
-        } else if (currentStepId === 'create_outline') {
+        } else if (stepId === 'create_outline') {
             fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to the current chapter outline. Here is their request: "${userRefinementRequest}". Please regenerate the entire outline, incorporating this feedback, and return it in the 'globalOutline' field of the JSON response.`;
         } else {
             fullContextObject.currentTask.instructions += `\n\nThe user has provided the following refinement: "${userRefinementRequest}". Please generate a new set of options based on this feedback and provide a personal response back to the user in the 'refinementMessage' field of the JSON response.`;
         }
     }
 
-    if (currentStepId === 'draft_chapter') {
-        const chapterToDraftIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
+    if (stepId === 'draft_chapter') {
+        const chapterToDraftIndex = bookState.chapters.findIndex(c => c.status === 'outlined');
         if (chapterToDraftIndex !== -1) {
-            const chapterToDraft = tempBookState.chapters[chapterToDraftIndex];
+            const chapterToDraft = bookState.chapters[chapterToDraftIndex];
             fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${chapterToDraft.chapterNumber}: ${chapterToDraft.title}**`;
         }
-    } else if (currentStepId === 'edit_chapter_loop' && tempBookState.editingChapterIndex !== undefined) {
-        const chapterToEdit = tempBookState.chapters[tempBookState.editingChapterIndex];
+    } else if (stepId === 'edit_chapter_loop' && bookState.editingChapterIndex !== undefined) {
+        const chapterToEdit = bookState.chapters[bookState.editingChapterIndex];
         if (chapterToEdit) {
-            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to review and edit Chapter ${chapterToEdit.chapterNumber}: ${chapterToEdit.title}**`;
+            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to review, edit,, and expand upon Chapter ${chapterToEdit.chapterNumber}: ${chapterToEdit.title}. You should checck for continuity with the rest of the chapters in the book content and return the updated chapter text**`;
         }
     }
 
     let promptForAI = `You are an AI assistant helping an author create a book. Here is the full context for your current task. Review the entire object carefully before responding.\n\n${JSON.stringify(fullContextObject, null, 2)}`;
 
-    if (stepConfig.userActions.includes('select_option')) {
-        promptForAI += `\n\n**Golden Rule:** Your primary goal is to provide researched, best selling, actionable, structured 'options' for the user to select. Always present the user with choices.`;
-    }
-    if (stepConfig.output.schema && stepConfig.output.schema.type === Type.OBJECT) {
+    if (stepConfig.output.schema && (stepConfig.output.schema as Schema).type === Type.OBJECT) {
         promptForAI += `\n\n**IMPORTANT:** Your response MUST be a single JSON object that strictly adheres to the provided schema. Do not add any extra text, commentary, or markdown formatting around the JSON.`;
     }
 
@@ -105,12 +87,9 @@ export const processStep = async (
         systemInstruction: personaMap[stepConfig.persona || 'ORCHESTRATOR'],
         contents: contents,
         modelId,
-        temperature: stepConfig.temperature
+        temperature: stepConfig.temperature,
+        responseSchema: stepConfig.output.schema as Schema | undefined
     };
-
-    if (stepConfig.output.schema) {
-        geminiParams.responseSchema = stepConfig.output.schema as Schema;
-    }
 
     return await callGemini(geminiParams);
 };

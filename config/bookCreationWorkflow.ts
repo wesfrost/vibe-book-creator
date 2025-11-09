@@ -196,21 +196,22 @@ export const bookCreationWorkflow = [
     {
         id: 'edit_chapter_loop',
         phase: 'Phase 4: Collaborative Editing',
-        title: 'Review a Chapter',
+        title: 'Edit a Chapter',
         persona: 'EDITOR',
         userActions: ['request_changes', 'approve_and_continue'],
-        userInstruction: "I've reviewed the next chapter and have some suggestions. Choose an area you'd like to focus on, or let me know if you have a specific change in mind.",
-        prompt: "You are a developmental editor. Review the `bookSpec.chapters` array and find the first chapter with a status of 'drafted'. Your goal is to help the author improve it. Provide a `refinementMessage` that summarizes your overall feedback, then provide a set of `options` with specific, actionable suggestions (e.g., 'Intensify the opening hook', 'Clarify the main character's motivation', 'Improve the pacing of the final scene').",
-        temperature: 0.5,
+        userInstruction: "Here is the edited version of the chapter. I've done a pass to improve flow, clarity, and impact. Read it over, and if you're happy with it, we can move on to the next chapter.",
+        prompt: "You are a developmental editor. Review the `bookSpec.chapters` array and find the first chapter with a status of 'drafted'. Your goal is to expand the chapter and perform a comprehensive edit of this chapter, focusing on pacing, clarity, and emotional impact. Return the full, rewritten chapter in the 'chapterContent' field. Your JSON response must include the correct 'chapterNumber' and a revised 'chapterTitle'.",
+        temperature: 0.7,
         output: {
-            type: 'chapter_review',
+            type: 'chapter_edit',
             schema: {
-                ...optionSchema,
+                type: Type.OBJECT,
                 properties: {
-                    ...optionSchema.properties,
-                    chapterNumber: { type: Type.INTEGER, description: 'The chapter number being reviewed.' },
+                    chapterNumber: { type: Type.INTEGER },
+                    chapterTitle: { type: Type.STRING },
+                    chapterContent: { type: Type.STRING, description: 'The full, rewritten text of the chapter in Markdown format.' }
                 },
-                required: [...optionSchema.required, 'chapterNumber']
+                required: ['chapterNumber', 'chapterTitle', 'chapterContent']
             }
         }
     },

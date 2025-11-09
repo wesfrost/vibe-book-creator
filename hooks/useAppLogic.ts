@@ -3,7 +3,7 @@ import React from 'react';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 import { processStep } from '../services/orchestrationService';
 import { useBookStore } from '../store/useBookStore';
-import { ChatMessage, Option, BookState } from '../types';
+import { ChatMessage, Option, BookState, Chapter } from '../types';
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
 type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
@@ -20,7 +20,7 @@ export const useAppLogic = () => {
         advanceToNextStep,
         getCurrentStep,
         handleChapterEditing,
-        updateChapterContent,
+        updateChapterDetails,
     } = useBookStore();
 
     const [mainView, setMainView] = React.useState<MainView>('dashboard');
@@ -39,10 +39,8 @@ export const useAppLogic = () => {
                 handleOutlineResponse(response);
                 break;
             case 'chapter_draft':
-                handleChapterDraftResponse(response);
-                break;
-            case 'chapter_review':
-                handleChapterReviewResponse(response);
+            case 'chapter_edit':
+                handleChapterUpdateResponse(response);
                 break;
             case 'options':
                 handleGenericResponse(response);
@@ -79,7 +77,7 @@ export const useAppLogic = () => {
             title: item.title, 
             summary: item.summary, 
             content: '', 
-            status: 'outlined'
+            status: 'outlined' as const
         }));
         updateBookState({ chapters: chaptersFromOutline });
         const currentStep = getCurrentStep();
@@ -88,22 +86,31 @@ export const useAppLogic = () => {
         setMainView('outline');
     }, [getCurrentStep, addMessage, updateBookState]);
 
-    const handleChapterDraftResponse = React.useCallback((responseData: any) => {
-        if (typeof responseData.chapterNumber !== 'number') {
+    const handleChapterUpdateResponse = React.useCallback((responseData: any) => {
+        const { chapterNumber, chapterTitle, chapterContent } = responseData;
+        if (typeof chapterNumber !== 'number') {
             addMessage({ id: 'error', role: 'model', parts: [{ text: "There was an issue identifying the chapter to update. Let's try again." }] });
             return;
         }
-        const chapterIndex = bookState.chapters.findIndex(c => c.chapterNumber === responseData.chapterNumber);
+        const chapterIndex = bookState.chapters.findIndex(c => c.chapterNumber === chapterNumber);
         if (chapterIndex === -1) {
             addMessage({ id: 'error', role: 'model', parts: [{ text: "I seem to have lost my place! Could you tell me which chapter we were working on?" }] });
             return;
         }
         
-        updateChapterContent(chapterIndex, responseData.chapterContent);
-        
         const currentStep = getCurrentStep();
-        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+        const detailsToUpdate: Partial<Chapter> = { content: chapterContent };
+
+        if (chapterTitle) {
+            detailsToUpdate.title = chapterTitle;
+        }
+        if (currentStep.id === 'draft_chapter') {
+            detailsToUpdate.status = 'drafted';
+        }
         
+        updateChapterDetails(chapterIndex, detailsToUpdate);
+        
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         const jimResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             role: 'model',
@@ -115,25 +122,7 @@ export const useAppLogic = () => {
         };
         addMessage(jimResponse);
         setMainView('editor');
-    }, [bookState.chapters, getCurrentStep, addMessage, updateChapterContent]);
-    
-    const handleChapterReviewResponse = React.useCallback((responseData: any) => {
-        if (typeof responseData.chapterNumber !== 'number') {
-            addMessage({ id: 'error', role: 'model', parts: [{ text: "There was an issue identifying the chapter for review. Let's try again." }] });
-            return;
-        }
-    
-        const chapterIndex = bookState.chapters.findIndex(c => c.chapterNumber === responseData.chapterNumber);
-        if (chapterIndex === -1) {
-            addMessage({ id: 'error', role: 'model', parts: [{ text: "I can't seem to find the chapter we're supposed to be editing. Could you point me in the right direction?" }] });
-            return;
-        }
-    
-        updateBookState({ editingChapterIndex: chapterIndex });
-    
-        handleGenericResponse(responseData);
-        setMainView('editor');
-    }, [bookState, updateBookState, addMessage]);
+    }, [bookState.chapters, getCurrentStep, addMessage, updateChapterDetails]);
 
     const handleUserAction = async (text: string, isSelection: boolean = true) => {
         if (isLoading) return;
@@ -142,7 +131,6 @@ export const useAppLogic = () => {
         setIsLoading(true);
     
         const currentStep = getCurrentStep();
-        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         let nextStepId = currentStep.id;
         let shouldAdvance = true;
     
@@ -158,10 +146,18 @@ export const useAppLogic = () => {
         } else if (currentStep.id === 'edit_chapter_loop') {
             if (text.toLowerCase().includes('approve')) {
                 handleChapterEditing();
+                const nextChapterToEditIndex = useBookStore.getState().bookState.chapters.findIndex(c => c.status === 'drafted');
+                if (nextChapterToEditIndex === -1) {
+                    shouldAdvance = true;
+                } else {
+                    shouldAdvance = false;
+                }
+            } else {
+                shouldAdvance = false; 
             }
-            shouldAdvance = false; 
         }
     
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
             const key = stepConfig.output.key as keyof BookState;
             updateBookState({ [key]: text });
@@ -169,7 +165,15 @@ export const useAppLogic = () => {
     
         if (shouldAdvance) {
             advanceToNextStep();
-            nextStepId = useBookStore.getState().getCurrentStep().id;
+            const newStepId = useBookStore.getState().getCurrentStep().id;
+            
+            if (newStepId === 'edit_chapter_loop') {
+                const nextChapterToEditIndex = useBookStore.getState().bookState.chapters.findIndex(c => c.status === 'drafted');
+                if (nextChapterToEditIndex !== -1) {
+                    updateBookState({ editingChapterIndex: nextChapterToEditIndex });
+                }
+            }
+            nextStepId = newStepId;
         }
     
         const response = await processStep(useBookStore.getState().messages, nextStepId, useBookStore.getState().bookState, selectedModelId);

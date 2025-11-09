@@ -7,19 +7,15 @@ import { marked } from 'marked';
 
 const MarkdownEditor: React.FC<{
     bookState: BookState;
+    chapterIndex: number;
     onContentChange: (chapterIndex: number, newContent: string) => void;
-    exportBook: () => void; // Keeping this prop for future use
-}> = ({ bookState, onContentChange }) => {
-    const [activeChapterIndex, setActiveChapterIndex] = useState(0);
+    exportBook: () => void;
+}> = ({ bookState, chapterIndex, onContentChange }) => {
+    const [activeChapterIndex, setActiveChapterIndex] = useState(chapterIndex);
 
     useEffect(() => {
-        const lastDraftedIndex = findLastIndex(bookState.chapters, c => c.status === 'drafted');
-        if (lastDraftedIndex !== -1) {
-            setActiveChapterIndex(lastDraftedIndex);
-        } else if (bookState.chapters.length > 0) {
-            setActiveChapterIndex(0);
-        }
-    }, [bookState.chapters]);
+        setActiveChapterIndex(chapterIndex);
+    }, [chapterIndex]);
 
     const handleExport = async () => {
         const zip = new JSZip();
@@ -93,15 +89,5 @@ const MarkdownEditor: React.FC<{
         </div>
     );
 };
-
-// Helper function to find the index of the last element in an array that satisfies a condition.
-function findLastIndex<T>(array: T[], predicate: (value: T, index: number, obj: T[]) => boolean): number {
-    for (let i = array.length - 1; i >= 0; i--) {
-        if (predicate(array[i], i, array)) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 export default MarkdownEditor;

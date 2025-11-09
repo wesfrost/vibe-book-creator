@@ -24,7 +24,7 @@ interface BookStore {
     setIsLoading: (isLoading: boolean) => void;
     setDynamicOptions: (options: Option[] | null) => void;
     updateChapterStatus: (chapterIndex: number, status: Chapter['status']) => void;
-    updateChapterContent: (chapterIndex: number, content: string) => void;
+    updateChapterDetails: (chapterIndex: number, details: Partial<Chapter>) => void;
     
     getCurrentStep: () => { id: string, title: string };
     advanceToNextStep: () => void;
@@ -108,27 +108,31 @@ export const useBookStore = create<BookStore>((set, get) => {
         setIsLoading: (isLoading) => set({ isLoading }),
         setDynamicOptions: (options) => set({ dynamicOptions: options }),
         updateChapterStatus: (chapterIndex, status) => {
-            const { bookState } = get();
-            const newChapters = [...bookState.chapters];
-            if (newChapters[chapterIndex]) {
-                newChapters[chapterIndex].status = status;
-                set(state => ({
-                    bookState: { ...bookState, chapters: newChapters },
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, { ...bookState, chapters: newChapters })
-                }));
-            }
+            set(state => {
+                const newChapters = [...state.bookState.chapters];
+                if (!newChapters[chapterIndex]) return state;
+        
+                newChapters[chapterIndex] = { ...newChapters[chapterIndex], status };
+                
+                const newBookState = { ...state.bookState, chapters: newChapters };
+                return {
+                    bookState: newBookState,
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                };
+            });
         },
-        updateChapterContent: (chapterIndex, content) => {
-            const { bookState } = get();
-            const newChapters = [...bookState.chapters];
-            if (newChapters[chapterIndex]) {
-                newChapters[chapterIndex].content = content;
-                newChapters[chapterIndex].status = 'drafted';
-                set(state => ({
-                    bookState: { ...bookState, chapters: newChapters },
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, { ...bookState, chapters: newChapters })
-                }));
-            }
+        updateChapterDetails: (chapterIndex, details) => {
+            set(state => {
+                const newChapters = [...state.bookState.chapters];
+                if (newChapters[chapterIndex]) {
+                    newChapters[chapterIndex] = { ...newChapters[chapterIndex], ...details };
+                }
+                const newBookState = { ...state.bookState, chapters: newChapters };
+                return {
+                    bookState: newBookState,
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                };
+            });
         },
         
         // --- Derived State ---
@@ -147,19 +151,31 @@ export const useBookStore = create<BookStore>((set, get) => {
         },
 
         handleChapterEditing: () => {
-            const { bookState, advanceToNextStep, updateChapterStatus } = get();
-            const { editingChapterIndex, chapters } = bookState;
-
-            if (editingChapterIndex !== undefined) {
-                updateChapterStatus(editingChapterIndex, 'reviewed');
-                const nextChapterToEditIndex = chapters.findIndex(chapter => chapter.status === 'drafted');
-
-                if (nextChapterToEditIndex !== -1) {
-                    set({ bookState: { ...bookState, editingChapterIndex: nextChapterToEditIndex } });
-                } else {
-                    advanceToNextStep();
-                }
-            }
+            set(state => {
+                const { editingChapterIndex, chapters } = state.bookState;
+                if (editingChapterIndex === undefined) return state;
+        
+                const newChapters = chapters.map((chapter, index) => {
+                    if (index === editingChapterIndex) {
+                        return { ...chapter, status: 'reviewed' as const };
+                    }
+                    return chapter;
+                });
+        
+                const nextChapterToEditIndex = newChapters.findIndex(chapter => chapter.status === 'drafted');
+                
+                const newBookState = {
+                    ...state.bookState,
+                    chapters: newChapters,
+                    editingChapterIndex: nextChapterToEditIndex !== -1 ? nextChapterToEditIndex : undefined,
+                };
+                
+                return {
+                    ...state,
+                    bookState: newBookState,
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                };
+            });
         },
     }
 });

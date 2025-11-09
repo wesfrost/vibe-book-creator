@@ -6,7 +6,6 @@ import ChapterOutline from './ChapterOutline';
 import MarkdownEditor from './MarkdownEditor';
 import ProgressTracker from './ProgressTracker';
 import { useBookStore } from '../store/useBookStore';
-import { BookState } from '../types';
 
 type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
 
@@ -15,8 +14,39 @@ interface MainContentProps {
     setMainView: (view: MainView) => void;
 }
 
+const findLastIndex = <T,>(arr: T[], predicate: (value: T, index: number, obj: T[]) => unknown): number => {
+    for (let i = arr.length - 1; i >= 0; i--) {
+        if (predicate(arr[i], i, arr)) {
+            return i;
+        }
+    }
+    return -1;
+};
+
 const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
-    const { bookState, progress, updateChapterContent } = useBookStore();
+    const { bookState, progress, updateChapterDetails } = useBookStore();
+    
+    const getEditorChapterIndex = (): number => {
+        // If we are actively editing a chapter, use that index
+        if (bookState.editingChapterIndex !== undefined) {
+            return bookState.editingChapterIndex;
+        }
+        
+        // Otherwise, find the last chapter that was drafted
+        const lastDraftedIndex = findLastIndex(bookState.chapters, c => c.status === 'drafted' || c.status === 'reviewed');
+        if (lastDraftedIndex !== -1) {
+            return lastDraftedIndex;
+        }
+
+        // Default to the first chapter if none are drafted or being edited
+        return 0;
+    };
+
+    const handleContentChange = (chapterIndex: number, newContent: string) => {
+        updateChapterDetails(chapterIndex, { content: newContent });
+    };
+
+    const editorChapterIndex = getEditorChapterIndex();
 
     return (
         <main className="flex-1 flex flex-col min-w-0 h-full bg-gray-850">
@@ -31,7 +61,14 @@ const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
             <div className="flex-1 p-4 md:p-6 min-h-0">
                 {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}
                 {mainView === 'outline' && <ChapterOutline bookState={bookState} />}
-                {mainView === 'editor' && <MarkdownEditor bookState={bookState} onContentChange={updateChapterContent} exportBook={() => {}} />}
+                {mainView === 'editor' && (
+                    <MarkdownEditor 
+                        chapterIndex={editorChapterIndex}
+                        bookState={bookState} 
+                        onContentChange={handleContentChange} 
+                        exportBook={() => {}} 
+                    />
+                )}
                 {mainView === 'progress' && <ProgressTracker progress={progress} bookState={bookState} />}
             </div>
         </main>
