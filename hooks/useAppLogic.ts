@@ -147,7 +147,12 @@ export const useAppLogic = () => {
         let shouldAdvance = true;
     
         if (currentStep.id === 'draft_chapter') {
-            if (!text.toLowerCase().includes('approve')) {
+            if (text.toLowerCase().includes('approve')) {
+                const nextChapterToDraftIndex = useBookStore.getState().bookState.chapters.findIndex(c => c.status === 'outlined');
+                if (nextChapterToDraftIndex !== -1) {
+                    shouldAdvance = false;
+                }
+            } else {
                 shouldAdvance = false;
             }
         } else if (currentStep.id === 'edit_chapter_loop') {
@@ -157,8 +162,8 @@ export const useAppLogic = () => {
             shouldAdvance = false; 
         }
     
-        if (stepConfig?.output.type === 'options' && 'key' in step.output) {
-            const key = step.output.key as keyof BookState;
+        if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
+            const key = stepConfig.output.key as keyof BookState;
             updateBookState({ [key]: text });
         }
     
