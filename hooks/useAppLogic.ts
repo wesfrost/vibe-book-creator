@@ -206,7 +206,7 @@ export const useAppLogic = () => {
                     id: 'jim-intro',
                     role: 'model',
                     parts: [{ text: firstStep.userInstruction || "Hello there! What kind of book are we creating today?" }],
-                    options: first-step.output.options as Option[]
+                    options: firstStep.output.options as Option[]
                 });
             }
         }
