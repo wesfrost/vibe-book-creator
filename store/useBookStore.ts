@@ -27,16 +27,12 @@ interface BookStore {
     updateChapterContent: (chapterIndex: number, content: string) => void;
     
     getCurrentStep: () => { id: string, title: string };
-    markStepAsComplete: (stepId: string) => void;
     advanceToNextStep: () => void;
     handleChapterEditing: () => void;
 }
 
 export const useBookStore = create<BookStore>((set, get) => {
     const transformWorkflowToProgress = (workflow: typeof bookCreationWorkflow, bookState: BookState): ProgressPhase[] => {
-        const { flatSteps, currentStepIndex } = get();
-        const currentStep = flatSteps[currentStepIndex];
-
         const phases: { [key: string]: ProgressPhase } = {};
         workflow.forEach(step => {
             if (!phases[step.phase]) {
@@ -63,7 +59,12 @@ export const useBookStore = create<BookStore>((set, get) => {
                     });
                 }
             } else {
-                const isCompleted = currentStep ? currentStep.id === step.id : false;
+                let isCompleted = false;
+                if (step.output && 'key' in step.output && step.output.key) {
+                    isCompleted = !!bookState[step.output.key as keyof BookState];
+                } else if (step.id === 'create_outline') {
+                    isCompleted = bookState.chapters && bookState.chapters.length > 0;
+                }
                 phases[step.phase].steps.push({ 
                     id: step.id, 
                     name: step.title, 
@@ -122,8 +123,10 @@ export const useBookStore = create<BookStore>((set, get) => {
             const newChapters = [...bookState.chapters];
             if (newChapters[chapterIndex]) {
                 newChapters[chapterIndex].content = content;
+                newChapters[chapterIndex].status = 'drafted';
                 set(state => ({
-                    bookState: { ...bookState, chapters: newChapters }
+                    bookState: { ...bookState, chapters: newChapters },
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, { ...bookState, chapters: newChapters })
                 }));
             }
         },
@@ -135,17 +138,6 @@ export const useBookStore = create<BookStore>((set, get) => {
         },
 
         // --- Complex Actions ---
-        markStepAsComplete: (stepId) => {
-            set(state => ({
-                progress: state.progress.map(phase => ({
-                    ...phase,
-                    steps: phase.steps.map(step =>
-                        step.id === stepId ? { ...step, completed: true } : step
-                    )
-                }))
-            }));
-        },
-
         advanceToNextStep: () => {
             const { flatSteps, currentStepIndex } = get();
             const nextStepIndex = currentStepIndex + 1;

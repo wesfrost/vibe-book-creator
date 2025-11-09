@@ -4,6 +4,7 @@ import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 import { processStep } from '../services/orchestrationService';
 import { useBookStore } from '../store/useBookStore';
 import { ChatMessage, Option, BookState } from '../types';
+import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
 type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
 
@@ -16,7 +17,6 @@ export const useAppLogic = () => {
         setBookState,
         updateBookState,
         setIsLoading,
-        markStepAsComplete,
         advanceToNextStep,
         getCurrentStep,
         handleChapterEditing,
@@ -24,7 +24,8 @@ export const useAppLogic = () => {
     } = useBookStore();
 
     const [mainView, setMainView] = React.useState<MainView>('dashboard');
-    const [selectedModelId, setSelectedModelId] = React.useState<string>('gemini-1.5-flash');
+    const [selectedModelId, setSelectedModelId] = React.useState<string>(DEFAULT_AI_MODEL_ID);
+    const initRef = React.useRef(false);
 
     const handleApiResponse = (response: any, stepId: string) => {
         const stepConfig = bookCreationWorkflow.find(s => s.id === stepId);
@@ -142,43 +143,22 @@ export const useAppLogic = () => {
     
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
-        let tempBookState = { ...bookState };
         let nextStepId = currentStep.id;
         let shouldAdvance = true;
     
         if (currentStep.id === 'draft_chapter') {
-            const chapterToDraftIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
-            if (text.toLowerCase().includes('approve')) {
-                if (chapterToDraftIndex !== -1) {
-                    markStepAsComplete(`draft_chapter_${tempBookState.chapters[chapterToDraftIndex].chapterNumber}`);
-                }
-                const nextChapterToDraftIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
-                if (nextChapterToDraftIndex !== -1) {
-                    shouldAdvance = false;
-                }
-            } else { // Requesting changes
+            if (!text.toLowerCase().includes('approve')) {
                 shouldAdvance = false;
             }
         } else if (currentStep.id === 'edit_chapter_loop') {
             if (text.toLowerCase().includes('approve')) {
-                const chapterToEditIndex = tempBookState.editingChapterIndex;
-                if (chapterToEditIndex !== undefined) {
-                    markStepAsComplete(`edit_chapter_${tempBookState.chapters[chapterToEditIndex].chapterNumber}`);
-                }
-                handleChapterEditing(); // This will find the next 'drafted' chapter or advance the phase
-                const nextChapterToEditIndex = tempBookState.chapters.findIndex(c => c.status === 'drafted');
-                if (nextChapterToEditIndex !== -1) {
-                    shouldAdvance = false;
-                }
-            } else { // This is a selection of an edit, not an approval
-                shouldAdvance = false; 
+                handleChapterEditing();
             }
-        } else if (stepConfig) {
-            markStepAsComplete(currentStep.id);
+            shouldAdvance = false; 
         }
     
-        if (stepConfig?.output.type === 'options' && 'key' in stepConfig.output) {
-            const key = stepConfig.output.key as keyof BookState;
+        if (stepConfig?.output.type === 'options' && 'key' in step.output) {
+            const key = step.output.key as keyof BookState;
             updateBookState({ [key]: text });
         }
     
@@ -199,6 +179,9 @@ export const useAppLogic = () => {
     };
 
     React.useEffect(() => {
+        if (initRef.current) return;
+        initRef.current = true;
+
         if (messages.length === 0) {
             const firstStep = bookCreationWorkflow[0];
             if (firstStep && firstStep.output.type === 'options') {
