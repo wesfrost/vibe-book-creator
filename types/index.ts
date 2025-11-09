@@ -51,5 +51,6 @@ export interface BookState {
     globalOutline?: any[];
     chapters: Chapter[];
     marketing?: any;
+    editingChapterIndex?: number; // For Editing Loop
     lastCompletedActionId?: string;
 }

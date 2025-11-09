@@ -8,7 +8,7 @@ if (!apiKey) {
 }
 const ai = new GoogleGenAI({apiKey});
 
-export type GeminiResponse<T> = 
+export type GeminiResponse<T> =
     | { success: true; data: T }
     | { success: false; error: string; rawResponse?: string };
 
@@ -21,6 +21,18 @@ export interface GeminiCallParams {
 }
 
 const cleanAndParseJson = <T>(rawResponse: string): T => {
+    
+    const jsonRegex = /```json\n([\s\S]*?)\n```/;
+    const match = rawResponse.match(jsonRegex);
+
+    if (match && match[1]) {
+        try {
+            return JSON.parse(match[1]) as T;
+        } catch (error) {
+            throw new Error("Failed to parse JSON from the response.");
+        }
+    }
+    
     const startIndex = rawResponse.indexOf('{');
     const endIndex = rawResponse.lastIndexOf('}');
     
@@ -48,7 +60,7 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
             model: modelId,
             contents: contents,
             config: {
-                systemInstruction: { role: "model", parts: [{ text: systemInstruction }] },
+                systemInstruction: systemInstruction,
                 temperature: temperature,
                 responseMimeType: "application/json",
                 ... (responseSchema && { responseSchema: responseSchema }),

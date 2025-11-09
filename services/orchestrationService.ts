@@ -19,7 +19,19 @@ export const processStep = async (
     bookState: BookState,
     modelId: string
 ): Promise<GeminiResponse<any>> => {
-    const stepConfig = bookCreationWorkflow.find(step => step.id === stepId);
+    let currentStepId = stepId;
+    let tempBookState = { ...bookState };
+
+    if (currentStepId === 'edit_chapter_loop') {
+        const nextChapterToEditIndex = tempBookState.chapters.findIndex(chapter => chapter.status === 'drafted');
+        if (nextChapterToEditIndex !== -1) {
+            tempBookState.editingChapterIndex = nextChapterToEditIndex;
+        } else {
+            currentStepId = 'generate_marketing_materials';
+        }
+    }
+
+    const stepConfig = bookCreationWorkflow.find(step => step.id === currentStepId);
     if (!stepConfig) {
         return { success: false, error: "I seem to have lost my place in the story... can we go back a step? 🤷" };
     }
@@ -32,34 +44,49 @@ export const processStep = async (
         })).slice(-10);
 
     const fullContextObject: any = {
-        bookSpec: bookState,
+        bookSpec: tempBookState,
         chatHistory: conversationalHistory,
         currentTask: {
             title: stepConfig.title,
             instructions: stepConfig.prompt
         }
     };
-    
+
     const lastMessage = history[history.length - 1];
     const isRefinement = lastMessage && lastMessage.role === 'user' && !lastMessage.isSystem;
 
     if (isRefinement) {
         const userRefinementRequest = lastMessage.parts[0].text || '';
         fullContextObject.userRefinement = userRefinementRequest;
-        
-        if (stepId === 'draft_chapter') {
-            fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to the current chapter draft. Here is their request: "${userRefinementRequest}". Please rewrite the entire chapter, incorporating this feedback, and return it in the 'chapterContent' field of the JSON response. You must still return the correct 'chapterNumber'.`;
-        } else if (stepId === 'create_outline') {
+
+        if (currentStepId === 'draft_chapter') {
+            const chapterIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
+            if (chapterIndex !== -1) {
+                fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to Chapter ${tempBookState.chapters[chapterIndex].chapterNumber}. Here is their request: "${userRefinementRequest}". Please rewrite the entire chapter, incorporating this feedback, and return it in the 'chapterContent' field of the JSON response. You must still return the correct 'chapterNumber'.`;
+            }
+        } else if (currentStepId === 'edit_chapter_loop') {
+            const chapterIndex = tempBookState.editingChapterIndex;
+            if (chapterIndex !== undefined && chapterIndex !== -1) {
+                const chapterToEdit = tempBookState.chapters[chapterIndex];
+                fullContextObject.currentTask.instructions = `The user wants to edit Chapter ${chapterToEdit.chapterNumber}: "${chapterToEdit.title}". They have chosen the following focus: "${userRefinementRequest}". Please rewrite the entire chapter with this focus and return the updated content.`;
+            }
+        } else if (currentStepId === 'create_outline') {
             fullContextObject.currentTask.instructions += `\n\nThe user has requested a change to the current chapter outline. Here is their request: "${userRefinementRequest}". Please regenerate the entire outline, incorporating this feedback, and return it in the 'globalOutline' field of the JSON response.`;
         } else {
             fullContextObject.currentTask.instructions += `\n\nThe user has provided the following refinement: "${userRefinementRequest}". Please generate a new set of options based on this feedback and provide a personal response back to the user in the 'refinementMessage' field of the JSON response.`;
         }
     }
 
-    if (stepId === 'draft_chapter' && bookState.draftingChapterIndex !== undefined) {
-        const chapterToDraft = bookState.chapters[bookState.draftingChapterIndex];
-        if (chapterToDraft) {
-            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${bookState.draftingChapterIndex}: ${chapterToDraft.title}**`;
+    if (currentStepId === 'draft_chapter') {
+        const chapterToDraftIndex = tempBookState.chapters.findIndex(c => c.status === 'outlined');
+        if (chapterToDraftIndex !== -1) {
+            const chapterToDraft = tempBookState.chapters[chapterToDraftIndex];
+            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to draft Chapter ${chapterToDraft.chapterNumber}: ${chapterToDraft.title}**`;
+        }
+    } else if (currentStepId === 'edit_chapter_loop' && tempBookState.editingChapterIndex !== undefined) {
+        const chapterToEdit = tempBookState.chapters[tempBookState.editingChapterIndex];
+        if (chapterToEdit) {
+            fullContextObject.currentTask.instructions += `\n\n**Specifically, you are to review and edit Chapter ${chapterToEdit.chapterNumber}: ${chapterToEdit.title}**`;
         }
     }
 

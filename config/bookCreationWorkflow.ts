@@ -194,29 +194,30 @@ export const bookCreationWorkflow = [
         }
     },
     {
-        id: 'review_chapter',
-        phase: 'Phase 4: Output & Polish',
-        title: 'Final Manuscript Review',
+        id: 'edit_chapter_loop',
+        phase: 'Phase 4: Collaborative Editing',
+        title: 'Review a Chapter',
         persona: 'EDITOR',
         userActions: ['request_changes', 'approve_and_continue'],
-        userInstruction: "I've gone through the chapter with an editor's eye. Here's the revised version with feedback and suggestions. Let me know if you want more changes or if you're ready to approve it.",
-        prompt: "Let's polish the draft like a bestselling editor would. Review the chapter for clarity, pacing, grammar, and style. Provide specific, actionable feedback and suggest concrete improvements to strengthen the narrative, tighten the prose, and heighten the emotional impact.",
-        temperature: 0.3,
+        userInstruction: "I've reviewed the next chapter and have some suggestions. Choose an area you'd like to focus on, or let me know if you have a specific change in mind.",
+        prompt: "You are a developmental editor. Review the `bookSpec.chapters` array and find the first chapter with a status of 'drafted'. Your goal is to help the author improve it. Provide a `refinementMessage` that summarizes your overall feedback, then provide a set of `options` with specific, actionable suggestions (e.g., 'Intensify the opening hook', 'Clarify the main character's motivation', 'Improve the pacing of the final scene').",
+        temperature: 0.5,
         output: {
             type: 'chapter_review',
             schema: {
-                type: Type.OBJECT,
+                ...optionSchema,
                 properties: {
-                    editedContent: { type: Type.STRING, description: 'The revised chapter content in Markdown.' },
-                    feedback: { type: Type.STRING, description: 'A summary of the key edits and suggestions for improvement.' }
-                }
+                    ...optionSchema.properties,
+                    chapterNumber: { type: Type.INTEGER, description: 'The chapter number being reviewed.' },
+                },
+                required: [...optionSchema.required, 'chapterNumber']
             }
         }
     },
     {
         id: 'generate_marketing_materials',
-        phase: 'Phase 4: Output & Polish',
-        title: 'Revision & Final Polish Complete',
+        phase: 'Phase 5: Finalization & Marketing',
+        title: 'Generate Marketing Materials',
         persona: 'MARKETER',
         userActions: ['select_option'],
         userInstruction: "Let's get the word out! I've created some marketing materials to help you promote your book. Choose the option that you think will best capture your target audience's attention.",

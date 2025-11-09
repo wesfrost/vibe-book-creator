@@ -676,3 +676,10 @@ https://googleapis.github.io/js-genai/.
 -   Models: ai.google.dev/models
 -   API Pricing: ai.google.dev/pricing
 -   Rate Limits: ai.google.dev/rate-limits
+
+### Post-Change Targeted Code Review
+
+1.  **Trigger:** After all code modifications for a given user request are complete.
+2.  **Action:** I will automatically perform a targeted code review.
+3.  **Scope:** The review will include all files I have directly modified and any other files determined to be closely related or potentially impacted by the changes.
+4.  **Report:** I will present a brief summary of my findings, highlighting any potential issues or confirming that everything looks solid. ✅
