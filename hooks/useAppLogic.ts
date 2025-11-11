@@ -133,12 +133,23 @@ export const useAppLogic = () => {
             addMessage({ id: 'error', role: 'model', parts: [{ text: "The AI returned an invalid format for the final review. Let's try that again." }] });
             return;
         }
-        updateBookState({ chapters });
+    
+        // Map the AI response to the BookState structure
+        const finalChapters: Chapter[] = chapters.map((chap: any) => ({
+            chapterNumber: chap.chapterNumber,
+            title: chap.chapterTitle,
+            content: chap.chapterContent,
+            status: 'edited', // Assuming 'edited' is the correct status after final review
+            summary: bookState.chapters.find(c => c.chapterNumber === chap.chapterNumber)?.summary || ''
+        }));
+    
+        updateBookState({ chapters: finalChapters });
+    
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         handleGenericResponse({}, stepConfig?.userInstruction);
         setMainView('manuscript');
-    }, [addMessage, updateBookState, getCurrentStep]);
+    }, [addMessage, updateBookState, getCurrentStep, bookState.chapters]);
 
     const handleUserAction = async (text: string, isSelection: boolean = true) => {
         if (isLoading) return;

@@ -30,19 +30,25 @@ interface BookStore {
 }
 
 export const useBookStore = create<BookStore>((set, get) => {
-    const transformWorkflowToProgress = (workflow: typeof bookCreationWorkflow, bookState: BookState): ProgressPhase[] => {
+    const transformWorkflowToProgress = (workflow: typeof bookCreationWorkflow, bookState: BookState, currentStepIndex: number, flatSteps: { id: string, title: string }[]): ProgressPhase[] => {
         const phases: { [key: string]: ProgressPhase } = {};
+        const currentStepId = flatSteps[currentStepIndex].id;
+    
         workflow.forEach(step => {
             if (!phases[step.phase]) {
                 phases[step.phase] = { name: step.phase, steps: [] };
             }
+    
+            const stepIndex = flatSteps.findIndex(s => s.id === step.id);
+            const isCompleted = stepIndex < currentStepIndex;
+    
             if (step.id === 'draft_chapter') {
                 if (bookState.chapters.length > 0) {
                     bookState.chapters.forEach(chapter => {
                         phases[step.phase].steps.push({
                             id: `draft_chapter_${chapter.chapterNumber}`,
                             name: `Draft: ${chapter.title}`,
-                            completed: chapter.status === 'drafted' || chapter.status === 'reviewed'
+                            completed: chapter.status === 'drafted' || chapter.status === 'edited' || chapter.status === 'reviewed'
                         });
                     });
                 }
@@ -52,26 +58,14 @@ export const useBookStore = create<BookStore>((set, get) => {
                         phases[step.phase].steps.push({
                             id: `edit_chapter_${chapter.chapterNumber}`,
                             name: `Edit: ${chapter.title}`,
-                            completed: chapter.status === 'reviewed'
+                            completed: chapter.status === 'edited' || chapter.status === 'reviewed'
                         });
                     });
                 }
-            } else if (step.id === 'final_manuscript_review') {
+            } else {
                 phases[step.phase].steps.push({
                     id: step.id,
                     name: step.title,
-                    completed: bookState.finalReviewCompleted || false
-                });
-            } else {
-                let isCompleted = false;
-                if (step.output && 'key' in step.output && step.output.key) {
-                    isCompleted = !!bookState[step.output.key as keyof BookState];
-                } else if (step.id === 'create_outline') {
-                    isCompleted = bookState.chapters && bookState.chapters.length > 0;
-                }
-                phases[step.phase].steps.push({ 
-                    id: step.id, 
-                    name: step.title, 
                     completed: isCompleted
                 });
             }
@@ -96,7 +90,7 @@ export const useBookStore = create<BookStore>((set, get) => {
         setBookState: (bookState) => {
             set(state => ({
                 bookState,
-                progress: transformWorkflowToProgress(bookCreationWorkflow, bookState)
+                progress: transformWorkflowToProgress(bookCreationWorkflow, bookState, state.currentStepIndex, state.flatSteps)
             }));
         },
         updateBookState: (updates) => {
@@ -104,7 +98,7 @@ export const useBookStore = create<BookStore>((set, get) => {
                 const newBookState = { ...state.bookState, ...updates };
                 return {
                     bookState: newBookState,
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState, state.currentStepIndex, state.flatSteps)
                 };
             });
         },
@@ -118,7 +112,7 @@ export const useBookStore = create<BookStore>((set, get) => {
                 const newBookState = { ...state.bookState, chapters: newChapters };
                 return {
                     bookState: newBookState,
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState, state.currentStepIndex, state.flatSteps)
                 };
             });
         },
@@ -131,11 +125,15 @@ export const useBookStore = create<BookStore>((set, get) => {
 
         // --- Complex Actions ---
         advanceToNextStep: () => {
-            const { flatSteps, currentStepIndex } = get();
-            const nextStepIndex = currentStepIndex + 1;
-            if (nextStepIndex < flatSteps.length) {
-                set({ currentStepIndex: nextStepIndex });
-            }
+            set(state => {
+                const nextStepIndex = state.currentStepIndex + 1;
+                if (nextStepIndex < state.flatSteps.length) {
+                    const newBookState = { ...state.bookState };
+                    const newProgress = transformWorkflowToProgress(bookCreationWorkflow, newBookState, nextStepIndex, state.flatSteps);
+                    return { currentStepIndex: nextStepIndex, progress: newProgress };
+                }
+                return state;
+            });
         },
 
         handleChapterEditing: () => {
@@ -161,7 +159,7 @@ export const useBookStore = create<BookStore>((set, get) => {
                 return {
                     ...state,
                     bookState: newBookState,
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
+                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState, state.currentStepIndex, state.flatSteps)
                 };
             });
         },
