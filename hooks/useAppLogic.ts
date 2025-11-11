@@ -6,7 +6,7 @@ import { useBookStore } from '../store/useBookStore';
 import { ChatMessage, Option, BookState, Chapter } from '../types';
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
 
-type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
+type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript';
 
 export const useAppLogic = () => {
     const {
@@ -41,6 +41,9 @@ export const useAppLogic = () => {
             case 'chapter_draft':
             case 'chapter_edit':
                 handleChapterUpdateResponse(response);
+                break;
+            case 'final_review':
+                handleFinalReviewResponse(response);
                 break;
             case 'options':
                 handleGenericResponse(response);
@@ -124,6 +127,19 @@ export const useAppLogic = () => {
         setMainView('editor');
     }, [bookState.chapters, getCurrentStep, addMessage, updateChapterDetails]);
 
+    const handleFinalReviewResponse = React.useCallback((responseData: any) => {
+        const { chapters } = responseData;
+        if (!Array.isArray(chapters)) {
+            addMessage({ id: 'error', role: 'model', parts: [{ text: "The AI returned an invalid format for the final review. Let's try that again." }] });
+            return;
+        }
+        updateBookState({ chapters });
+        const currentStep = getCurrentStep();
+        const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
+        handleGenericResponse({}, stepConfig?.userInstruction);
+        setMainView('manuscript');
+    }, [addMessage, updateBookState, getCurrentStep]);
+
     const handleUserAction = async (text: string, isSelection: boolean = true) => {
         if (isLoading) return;
     
@@ -154,6 +170,10 @@ export const useAppLogic = () => {
                 }
             } else {
                 shouldAdvance = false; 
+            }
+        } else if (currentStep.id === 'final_manuscript_review') {
+            if (text.toLowerCase().includes('approve')) {
+                updateBookState({ finalReviewCompleted: true });
             }
         }
     

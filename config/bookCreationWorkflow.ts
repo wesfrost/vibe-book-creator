@@ -216,8 +216,39 @@ export const bookCreationWorkflow = [
         }
     },
     {
+        id: 'final_manuscript_review',
+        phase: 'Phase 5: Final Polish',
+        title: 'Final Manuscript Review',
+        persona: 'EDITOR',
+        userActions: ['approve_and_continue'],
+        userInstruction: "I've performed a final, comprehensive review of the entire manuscript, checking for consistency, flow, and any lingering grammatical issues. Here is the polished version. If you approve, we can move on to the marketing phase!",
+        prompt: "You are a meticulous line editor. Review the entire manuscript in the `bookSpec.chapters` array. Your task is to perform a final polish, correcting any grammatical errors, improving sentence structure, and ensuring consistency throughout the narrative. Return the *entire* updated manuscript in the `chapters` field of your response.",
+        temperature: 0.5,
+        output: {
+            type: 'final_review',
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    chapters: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                chapterNumber: { type: Type.INTEGER },
+                                chapterTitle: { type: Type.STRING },
+                                chapterContent: { type: Type.STRING }
+                            },
+                            required: ['chapterNumber', 'chapterTitle', 'chapterContent']
+                        }
+                    }
+                },
+                required: ['chapters']
+            }
+        }
+    },
+    {
         id: 'generate_marketing_materials',
-        phase: 'Phase 5: Finalization & Marketing',
+        phase: 'Phase 6: Finalization & Marketing',
         title: 'Generate Marketing Materials',
         persona: 'MARKETER',
         userActions: ['select_option'],

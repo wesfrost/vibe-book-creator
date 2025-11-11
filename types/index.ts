@@ -1,25 +1,21 @@
 
-import { Part } from "@google/genai";
-
 export interface Option {
     title: string;
-    description?: string;
+    description: string;
     rationale?: string;
 }
 
 export interface ChatMessage {
     id: string;
     role: 'user' | 'model';
-    parts: Part[];
+    parts: { text: string }[];
+    isSystem?: boolean;
     options?: Option[];
     bestOption?: number;
-    isAnalysis?: boolean;
-    isAuto?: boolean;
-    isSystem?: boolean;
 }
 
 export interface ProgressStep {
-    id?: string;
+    id: string;
     name: string;
     completed: boolean;
 }
@@ -32,9 +28,16 @@ export interface ProgressPhase {
 export interface Chapter {
     chapterNumber: number;
     title: string;
-    summary?: string; 
+    summary?: string;
     content: string;
     status: 'outlined' | 'drafted' | 'reviewed';
+}
+
+export interface Suggestion {
+    chapterNumber: number;
+    originalText: string;
+    proposedChange: string;
+    rationale: string;
 }
 
 export interface BookState {
@@ -51,6 +54,6 @@ export interface BookState {
     globalOutline?: any[];
     chapters: Chapter[];
     marketing?: any;
-    editingChapterIndex?: number; // For Editing Loop
-    lastCompletedActionId?: string;
+    editingChapterIndex?: number;
+    finalReviewCompleted?: boolean;
 }

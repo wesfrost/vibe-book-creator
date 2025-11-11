@@ -9,9 +9,12 @@ export default function App() {
     const {
         mainView,
         selectedModelId,
+        suggestions,
         setMainView,
         setSelectedModelId,
         handleUserAction,
+        handleAcceptSuggestion,
+        handleRejectSuggestion,
     } = useAppLogic();
 
     return (
@@ -19,7 +22,13 @@ export default function App() {
             <Header selectedModelId={selectedModelId} setSelectedModelId={setSelectedModelId} />
             <div className="flex flex-row flex-1 overflow-hidden">
                 <Sidebar onUserAction={handleUserAction} />
-                <MainContent mainView={mainView} setMainView={setMainView} />
+                <MainContent 
+                    mainView={mainView} 
+                    setMainView={setMainView} 
+                    suggestions={suggestions} 
+                    onAcceptSuggestion={handleAcceptSuggestion}
+                    onRejectSuggestion={handleRejectSuggestion}
+                />
             </div>
         </div>
     );

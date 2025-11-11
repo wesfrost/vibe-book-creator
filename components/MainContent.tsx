@@ -1,13 +1,14 @@
 
 import React from 'react';
 import ViewToggle from './ViewToggle';
-import BookStateViewer from './BookStateViewer';
 import ChapterOutline from './ChapterOutline';
 import MarkdownEditor from './MarkdownEditor';
 import ProgressTracker from './ProgressTracker';
+import FinalManuscriptViewer from './FinalManuscriptViewer';
+import Dashboard from './Dashboard';
 import { useBookStore } from '../store/useBookStore';
 
-type MainView = 'progress' | 'editor' | 'dashboard' | 'outline';
+type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript';
 
 interface MainContentProps {
     mainView: MainView;
@@ -27,18 +28,13 @@ const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
     const { bookState, progress, updateChapterDetails } = useBookStore();
     
     const getEditorChapterIndex = (): number => {
-        // If we are actively editing a chapter, use that index
         if (bookState.editingChapterIndex !== undefined) {
             return bookState.editingChapterIndex;
         }
-        
-        // Otherwise, find the last chapter that was drafted
         const lastDraftedIndex = findLastIndex(bookState.chapters, c => c.status === 'drafted' || c.status === 'reviewed');
         if (lastDraftedIndex !== -1) {
             return lastDraftedIndex;
         }
-
-        // Default to the first chapter if none are drafted or being edited
         return 0;
     };
 
@@ -55,11 +51,12 @@ const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
                     <ViewToggle label="Dashboard" view="dashboard" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Outline" view="outline" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Editor" view="editor" activeView={mainView} onClick={setMainView} />
+                    <ViewToggle label="Manuscript" view="manuscript" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
                 </div>
             </div>
             <div className="flex-1 p-4 md:p-6 min-h-0">
-                {mainView === 'dashboard' && <BookStateViewer bookState={bookState} />}
+                {mainView === 'dashboard' && <Dashboard bookState={bookState} />}
                 {mainView === 'outline' && <ChapterOutline bookState={bookState} />}
                 {mainView === 'editor' && (
                     <MarkdownEditor 
@@ -69,6 +66,7 @@ const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
                         exportBook={() => {}} 
                     />
                 )}
+                {mainView === 'manuscript' && <FinalManuscriptViewer bookState={bookState} />}
                 {mainView === 'progress' && <ProgressTracker progress={progress} bookState={bookState} />}
             </div>
         </main>

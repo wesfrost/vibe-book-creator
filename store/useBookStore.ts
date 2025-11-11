@@ -16,14 +16,12 @@ interface BookStore {
     currentStepIndex: number;
     bookState: BookState;
     isLoading: boolean;
-    dynamicOptions: Option[] | null;
 
     addMessage: (message: ChatMessage) => void;
     setBookState: (bookState: BookState) => void;
     updateBookState: (updates: Partial<BookState>) => void;
     setIsLoading: (isLoading: boolean) => void;
-    setDynamicOptions: (options: Option[] | null) => void;
-    updateChapterStatus: (chapterIndex: number, status: Chapter['status']) => void;
+    
     updateChapterDetails: (chapterIndex: number, details: Partial<Chapter>) => void;
     
     getCurrentStep: () => { id: string, title: string };
@@ -58,6 +56,12 @@ export const useBookStore = create<BookStore>((set, get) => {
                         });
                     });
                 }
+            } else if (step.id === 'final_manuscript_review') {
+                phases[step.phase].steps.push({
+                    id: step.id,
+                    name: step.title,
+                    completed: bookState.finalReviewCompleted || false
+                });
             } else {
                 let isCompleted = false;
                 if (step.output && 'key' in step.output && step.output.key) {
@@ -83,10 +87,9 @@ export const useBookStore = create<BookStore>((set, get) => {
         currentStepIndex: 0,
         bookState: { 
             chapters: [],
-            lastCompletedActionId: undefined,
+            finalReviewCompleted: false,
         },
         isLoading: false,
-        dynamicOptions: null,
 
         // --- Actions ---
         addMessage: (message) => set(state => ({ messages: [...state.messages, message] })),
@@ -106,21 +109,6 @@ export const useBookStore = create<BookStore>((set, get) => {
             });
         },
         setIsLoading: (isLoading) => set({ isLoading }),
-        setDynamicOptions: (options) => set({ dynamicOptions: options }),
-        updateChapterStatus: (chapterIndex, status) => {
-            set(state => {
-                const newChapters = [...state.bookState.chapters];
-                if (!newChapters[chapterIndex]) return state;
-        
-                newChapters[chapterIndex] = { ...newChapters[chapterIndex], status };
-                
-                const newBookState = { ...state.bookState, chapters: newChapters };
-                return {
-                    bookState: newBookState,
-                    progress: transformWorkflowToProgress(bookCreationWorkflow, newBookState)
-                };
-            });
-        },
         updateChapterDetails: (chapterIndex, details) => {
             set(state => {
                 const newChapters = [...state.bookState.chapters];
