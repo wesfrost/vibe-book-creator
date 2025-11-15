@@ -6,9 +6,9 @@ import MarkdownEditor from './MarkdownEditor';
 import ProgressTracker from './ProgressTracker';
 import FinalManuscriptViewer from './FinalManuscriptViewer';
 import Dashboard from './Dashboard';
+import CoverDesigner from './CoverDesigner';
 import { useBookStore } from '../store/useBookStore';
-
-type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript';
+import { Suggestion, MainView } from '../types';
 
 interface MainContentProps {
     mainView: MainView;
@@ -51,26 +51,31 @@ const MainContent: React.FC<MainContentProps> = ({ mainView, setMainView }) => {
                     <ViewToggle label="Dashboard" view="dashboard" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Outline" view="outline" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Editor" view="editor" activeView={mainView} onClick={setMainView} />
-                    <ViewToggle label="Manuscript" view="manuscript" activeView={mainView} onClick={setMainView} />
+                    <ViewToggle label="Final Manuscript" view="manuscript" activeView={mainView} onClick={setMainView} />
+                    <ViewToggle label="Cover" view="cover" activeView={mainView} onClick={setMainView} />
                     <ViewToggle label="Progress" view="progress" activeView={mainView} onClick={setMainView} />
                 </div>
             </div>
             <div className="flex-1 p-4 md:p-6 min-h-0">
                 {mainView === 'dashboard' && <Dashboard bookState={bookState} />}
                 {mainView === 'outline' && <ChapterOutline bookState={bookState} />}
-                {mainView === 'editor' && (
-                    <MarkdownEditor 
-                        chapterIndex={editorChapterIndex}
-                        bookState={bookState} 
-                        onContentChange={handleContentChange} 
-                        exportBook={() => {}} 
-                    />
-                )}
-                {mainView === 'manuscript' && <FinalManuscriptViewer bookState={bookState} />}
+                {mainView === 'editor' && <MarkdownEditor 
+                    bookState={bookState} 
+                    chapterIndex={editorChapterIndex}
+                    onContentChange={handleContentChange}
+                    exportBook={() => {}}
+                    suggestions={bookState.suggestions || []}
+                    onAcceptSuggestion={() => {}}
+                    onRejectSuggestion={() => {}}
+                />}
+                {mainView === 'manuscript' && <FinalManuscriptViewer 
+                    bookState={bookState} 
+                    onContentChange={handleContentChange}
+                />}
+                {mainView === 'cover' && <CoverDesigner bookState={bookState} />}
                 {mainView === 'progress' && <ProgressTracker progress={progress} bookState={bookState} />}
             </div>
         </main>
     );
 };
-
 export default MainContent;

@@ -3,10 +3,9 @@ import React from 'react';
 import { bookCreationWorkflow } from '../config/bookCreationWorkflow';
 import { processStep } from '../services/orchestrationService';
 import { useBookStore } from '../store/useBookStore';
-import { ChatMessage, Option, BookState, Chapter } from '../types';
+import { ChatMessage, Option, BookState, Chapter, Suggestion, MainView } from '../types';
+import { generateCoverConcepts } from '../services/coverService';
 import { DEFAULT_AI_MODEL_ID } from '../config/aiModels';
-
-type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript';
 
 export const useAppLogic = () => {
     const {
@@ -34,22 +33,26 @@ export const useAppLogic = () => {
             return;
         }
 
-        switch (stepConfig.output.type) {
-            case 'outline':
+        switch (stepConfig.id) {
+            case 'create_outline':
                 handleOutlineResponse(response);
                 break;
-            case 'chapter_draft':
-            case 'chapter_edit':
+            case 'draft_chapter':
+            case 'edit_chapter_loop':
                 handleChapterUpdateResponse(response);
                 break;
-            case 'final_review':
+            case 'final_manuscript_review':
                 handleFinalReviewResponse(response);
                 break;
-            case 'options':
-                handleGenericResponse(response);
+            case 'generate_cover_images':
+                handleCoverOptionsResponse(response);
                 break;
             default:
-                addMessage({ id: 'error', role: 'model', parts: [{ text: `I received an unexpected response from the AI. Let's try that again.` }] });
+                if (stepConfig.output.type === 'options') {
+                    handleGenericResponse(response);
+                } else {
+                    addMessage({ id: 'error', role: 'model', parts: [{ text: `I received an unexpected response from the AI. Let's try that again.` }] });
+                }
                 break;
         }
     };
@@ -109,6 +112,8 @@ export const useAppLogic = () => {
         }
         if (currentStep.id === 'draft_chapter') {
             detailsToUpdate.status = 'drafted';
+        } else if (currentStep.id === 'edit_chapter_loop') {
+            detailsToUpdate.status = 'edited';
         }
         
         updateChapterDetails(chapterIndex, detailsToUpdate);
@@ -124,7 +129,7 @@ export const useAppLogic = () => {
             ]
         };
         addMessage(jimResponse);
-        setMainView('editor');
+        setMainView('manuscript');
     }, [bookState.chapters, getCurrentStep, addMessage, updateChapterDetails]);
 
     const handleFinalReviewResponse = React.useCallback((responseData: any) => {
@@ -134,22 +139,49 @@ export const useAppLogic = () => {
             return;
         }
     
-        // Map the AI response to the BookState structure
         const finalChapters: Chapter[] = chapters.map((chap: any) => ({
             chapterNumber: chap.chapterNumber,
             title: chap.chapterTitle,
             content: chap.chapterContent,
-            status: 'edited', // Assuming 'edited' is the correct status after final review
-            summary: bookState.chapters.find(c => c.chapterNumber === chap.chapterNumber)?.summary || ''
+            status: 'reviewed',
+            summary: useBookStore.getState().bookState.chapters.find(c => c.chapterNumber === chap.chapterNumber)?.summary || ''
         }));
     
-        updateBookState({ chapters: finalChapters });
+        updateBookState({ chapters: finalChapters, finalReviewCompleted: true });
     
         const currentStep = getCurrentStep();
         const stepConfig = bookCreationWorkflow.find(s => s.id === currentStep.id);
         handleGenericResponse({}, stepConfig?.userInstruction);
         setMainView('manuscript');
     }, [addMessage, updateBookState, getCurrentStep, bookState.chapters]);
+
+    const handleCoverOptionsResponse = React.useCallback(async (responseData: any) => {
+        const { options } = responseData;
+        if (!Array.isArray(options)) {
+            addMessage({ id: 'error', role: 'model', parts: [{ text: "The AI returned an invalid format for the cover options. Let's try that again." }] });
+            return;
+        }
+    
+        updateBookState({ coverOptions: options });
+        
+        const imageUrls = await generateCoverConcepts(useBookStore.getState().bookState);
+        updateBookState({ coverImages: imageUrls });
+    
+        const chatOptions = imageUrls.map((url, index) => ({
+            title: `Option ${index + 1}`,
+            description: options[index]?.title || `Select cover image ${index + 1}`,
+        }));
+
+        const jimResponse: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'model',
+            parts: [{ text: "Here are the cover concepts I've generated. Which one do you prefer?" }],
+            options: chatOptions,
+        };
+        addMessage(jimResponse);
+        setMainView('cover');
+        advanceToNextStep();
+    }, [addMessage, updateBookState]);
 
     const handleUserAction = async (text: string, isSelection: boolean = true) => {
         if (isLoading) return;
@@ -185,6 +217,14 @@ export const useAppLogic = () => {
         } else if (currentStep.id === 'final_manuscript_review') {
             if (text.toLowerCase().includes('approve')) {
                 updateBookState({ finalReviewCompleted: true });
+            }
+        } else if (currentStep.id === 'select_cover_image') {
+            if (isSelection) {
+                const optionIndex = parseInt(text.replace('Option ', ''), 10) - 1;
+                if (bookState.coverImages && bookState.coverImages[optionIndex]) {
+                    updateBookState({ coverImage: bookState.coverImages[optionIndex] });
+                    shouldAdvance = true;
+                }
             }
         }
     

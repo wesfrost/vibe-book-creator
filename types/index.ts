@@ -12,6 +12,8 @@ export interface ChatMessage {
     isSystem?: boolean;
     options?: Option[];
     bestOption?: number;
+    isAnalysis?: boolean;
+    isAuto?: boolean;
 }
 
 export interface ProgressStep {
@@ -30,7 +32,7 @@ export interface Chapter {
     title: string;
     summary?: string;
     content: string;
-    status: 'outlined' | 'drafted' | 'reviewed';
+    status: 'outlined' | 'drafted' | 'edited' | 'reviewed';
 }
 
 export interface Suggestion {
@@ -56,4 +58,13 @@ export interface BookState {
     marketing?: any;
     editingChapterIndex?: number;
     finalReviewCompleted?: boolean;
+    suggestions?: Suggestion[];
+    coverOptions?: Option[];
+    coverImages?: string[];
+    coverImage?: string;
+    kdpKeywords?: string[];
+    bookCategories?: string[];
+    blurb?: string;
 }
+
+export type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript' | 'cover';

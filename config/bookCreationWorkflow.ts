@@ -247,8 +247,23 @@ export const bookCreationWorkflow = [
         }
     },
     {
+        id: 'generate_cover_images',
+        phase: 'Phase 6: Cover Design',
+        title: 'Generate Cover Images',
+        persona: 'MARKETER',
+        userActions: ['select_option'],
+        userInstruction: "Now, let's create a stunning cover for your book. A great cover is the most important marketing tool you have. I've generated 4 concepts based on the book's content. Which one best captures the essence of your story?",
+        prompt: `Based on the book's genre, vibe, and storyline, generate 4 distinct and compelling cover concepts. Make sure the books title is spelledd correctly. For each, provide a 'title' that summarizes the concept and a 'rationale' that explains the visual elements and how they would appeal to the target audience.`,
+        temperature: 0.8,
+        output: {
+            type: 'options',
+            key: 'coverOptions',
+            schema: optionSchema
+        }
+    },
+    {
         id: 'generate_marketing_materials',
-        phase: 'Phase 6: Finalization & Marketing',
+        phase: 'Phase 7: Finalization & Marketing',
         title: 'Generate Marketing Materials',
         persona: 'MARKETER',
         userActions: ['select_option'],

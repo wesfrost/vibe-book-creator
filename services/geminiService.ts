@@ -21,27 +21,44 @@ export interface GeminiCallParams {
 }
 
 const cleanAndParseJson = <T>(rawResponse: string): T => {
-    
+    let jsonString = "";
+
+    // First, try to extract JSON from a markdown code block
     const jsonRegex = /```json\n([\s\S]*?)\n```/;
     const match = rawResponse.match(jsonRegex);
 
     if (match && match[1]) {
-        try {
-            return JSON.parse(match[1]) as T;
-        } catch (error) {
-            throw new Error("Failed to parse JSON from the response.");
+        jsonString = match[1];
+    } else {
+        // If no markdown block, find the first '{' or '[' and last '}' or ']'
+        const firstBrace = rawResponse.indexOf('{');
+        const firstBracket = rawResponse.indexOf('[');
+        
+        let startIndex = -1;
+        if (firstBrace === -1) startIndex = firstBracket;
+        else if (firstBracket === -1) startIndex = firstBrace;
+        else startIndex = Math.min(firstBrace, firstBracket);
+
+        const lastBrace = rawResponse.lastIndexOf('}');
+        const lastBracket = rawResponse.lastIndexOf(']');
+        const endIndex = Math.max(lastBrace, lastBracket);
+
+        if (startIndex !== -1 && endIndex !== -1) {
+            jsonString = rawResponse.substring(startIndex, endIndex + 1);
+        } else {
+             throw new Error("No valid JSON object or array found in the response.");
         }
     }
-    
-    const startIndex = rawResponse.indexOf('{');
-    const endIndex = rawResponse.lastIndexOf('}');
-    
-    if (startIndex === -1 || endIndex === -1) {
-        throw new Error("No valid JSON object found in the response.");
+
+    // Remove trailing commas before parsing
+    const cleanedString = jsonString.replace(/,(?=\s*?[\]}])/g, '');
+
+    try {
+        return JSON.parse(cleanedString) as T;
+    } catch (error: unknown) {
+        console.error("Still failed to parse JSON after cleaning:", error);
+        throw error; // Re-throw to be caught by the handler in callGemini
     }
-    
-    const jsonString = rawResponse.substring(startIndex, endIndex + 1);
-    return JSON.parse(jsonString) as T;
 };
 
 export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiResponse<T>> => {
@@ -69,6 +86,8 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
         
         const rawResponse = result.text?.trim();
         
+        console.log('%c📄 Raw AI Response:', 'color: #ff79c6; font-weight: bold;', rawResponse);
+
         if (!rawResponse) {
              return { success: false, error: "Received an empty or undefined response from the AI. This might be due to safety filters or other issues." };
         }
@@ -78,9 +97,12 @@ export const callGemini = async <T>(params: GeminiCallParams): Promise<GeminiRes
             console.log('%c✅ Parsed Response:', 'color: #34d399; font-weight: bold;', parsedJson);
             return { success: true, data: parsedJson };
         } catch (parseError: unknown) {
-            console.log('⚠️ JSON Parsing failed, treating as a conversational text response.');
-            const fallbackData = { refinementMessage: rawResponse, options: [] } as T;
-            return { success: true, data: fallbackData };
+            console.error('⚠️ JSON Parsing failed.', parseError);
+            return { 
+                success: false, 
+                error: `Failed to parse JSON response from AI. Error: ${(parseError instanceof Error) ? parseError.message : 'Unknown parsing error.'}`,
+                rawResponse: rawResponse
+            };
         }
 
     } catch (error: unknown) {

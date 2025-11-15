@@ -62,6 +62,12 @@ export const useBookStore = create<BookStore>((set, get) => {
                         });
                     });
                 }
+            } else if (step.id === 'generate_cover_images') {
+                phases[step.phase].steps.push({
+                    id: step.id,
+                    name: step.title,
+                    completed: !!(isCompleted || (bookState.coverOptions && bookState.coverOptions.length > 0))
+                });
             } else {
                 phases[step.phase].steps.push({
                     id: step.id,

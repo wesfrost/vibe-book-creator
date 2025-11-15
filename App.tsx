@@ -9,12 +9,9 @@ export default function App() {
     const {
         mainView,
         selectedModelId,
-        suggestions,
         setMainView,
         setSelectedModelId,
         handleUserAction,
-        handleAcceptSuggestion,
-        handleRejectSuggestion,
     } = useAppLogic();
 
     return (
@@ -25,9 +22,6 @@ export default function App() {
                 <MainContent 
                     mainView={mainView} 
                     setMainView={setMainView} 
-                    suggestions={suggestions} 
-                    onAcceptSuggestion={handleAcceptSuggestion}
-                    onRejectSuggestion={handleRejectSuggestion}
                 />
             </div>
         </div>

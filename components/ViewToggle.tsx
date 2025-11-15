@@ -1,7 +1,6 @@
 
 import React from 'react';
-
-type MainView = 'progress' | 'editor' | 'dashboard' | 'outline' | 'manuscript';
+import { MainView } from '../types';
 
 interface ViewToggleProps {
     label: string;
